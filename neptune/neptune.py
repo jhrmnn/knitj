@@ -5,6 +5,7 @@ from pathlib import Path
 import asyncio
 from asyncio import Queue
 
+import websockets
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
@@ -19,11 +20,21 @@ class FileChangedHandler(FileSystemEventHandler):
         self._loop.call_soon_threadsafe(self._queue.put_nowait, event.src_path)
 
 
-async def handler(file):
-    print('Modified!', file)
+async def handler(file, ws):
+    await ws.send(file.read_text())
 
 
-async def neptune(*, watched):
+async def notebook(ws):
+    print('Got notebook:', ws)
+    try:
+        while True:
+            data = await ws.recv()
+            print(data)
+    except websockets.ConnectionClosed as e:
+        print('Notebook disconnected:', ws)
+
+
+async def watcher(clients, watched):
     watched = Path(watched)
     queue = Queue()
     observer = Observer()
@@ -33,7 +44,19 @@ async def neptune(*, watched):
         while True:
             file = Path(await queue.get())
             if file == watched:
-                await handler(watched)
+                for client in clients:
+                    await handler(watched, client)
     finally:
         observer.stop()
         observer.join()
+
+
+async def neptune(watched):
+    clients = []
+
+    async def handler(ws, path):
+        clients.append(ws)
+        await notebook(ws)
+    server = websockets.serve(handler, 'localhost', 6060)
+    asyncio.get_event_loop().create_task(server)
+    await watcher(clients, watched)
