@@ -1,0 +1,22 @@
+#!/usr/bin/env python3
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+from argparse import ArgumentParser
+import asyncio
+
+from neptune import neptune
+
+
+def parse_cli():
+    parser = ArgumentParser()
+    arg = parser.add_argument
+    arg('watched', metavar='FILE')
+    return vars(parser.parse_args())
+
+
+if __name__ == '__main__':
+    try:
+        asyncio.get_event_loop().run_until_complete(neptune(**parse_cli()))
+    except KeyboardInterrupt:
+        raise SystemExit()

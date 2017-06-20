@@ -9,6 +9,7 @@ setup(
     author_email='dev@hermann.in',
     url='https://github.com/azag0/neptune',
     packages=['neptune'],
+    scripts=['scripts/neptune'],
     classifiers=[
         'Development Status :: 1 - Planning',
         'Environment :: Console',
@@ -23,4 +24,5 @@ setup(
         'Topic :: Utilities',
     ],
     license='Mozilla Public License 2.0',
+    install_requires=['watchdog'],
 )
