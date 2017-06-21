@@ -40,15 +40,11 @@ async def watcher(clients, watched):
     observer = Observer()
     observer.schedule(FileChangedHandler(queue=queue), '.')
     observer.start()
-    try:
-        while True:
-            file = Path(await queue.get())
-            if file == watched:
-                for client in clients:
-                    await handler(watched, client)
-    finally:
-        observer.stop()
-        observer.join()
+    while True:
+        file = Path(await queue.get())
+        if file == watched:
+            for client in clients:
+                await handler(watched, client)
 
 
 async def neptune(watched):

@@ -16,7 +16,9 @@ def parse_cli():
 
 
 if __name__ == '__main__':
+    task = asyncio.ensure_future(neptune(**parse_cli()))
     try:
-        asyncio.get_event_loop().run_until_complete(neptune(**parse_cli()))
+        asyncio.get_event_loop().run_until_complete(task)
     except KeyboardInterrupt:
-        raise SystemExit()
+        task.cancel()
+        asyncio.get_event_loop().run_forever()
