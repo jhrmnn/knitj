@@ -5,6 +5,10 @@ from pathlib import Path
 import functools
 from pprint import pprint, pformat
 import queue
+from collections import namedtuple
+from itertools import cycle
+import hashlib
+from enum import Enum
 import asyncio
 from asyncio import Queue
 
@@ -60,6 +64,7 @@ class Kernel:
     def __init__(self, notebooks):
         self.notebooks = notebooks
         self._loop = asyncio.get_event_loop()
+        self._hashids = {}
 
     async def _get_msg(self, func):
         return await self._loop.run_in_executor(
@@ -72,9 +77,12 @@ class Kernel:
                 msg = await self._get_msg(self._client.get_iopub_msg)
             except queue.Empty:
                 continue
-            data = pformat(msg)
-            for nb in self.notebooks:
-                nb.add_output(data)
+            if msg['msg_type'] == 'execute_result':
+                hashid = self._hashids[msg['parent_header']['msg_id']]
+                data = pformat((hashid, msg['content']['data']))
+                for nb in self.notebooks:
+                    nb.add_output(data)
+            pprint(msg)
 
     async def _shell_receiver(self):
         while True:
@@ -84,8 +92,9 @@ class Kernel:
                 continue
             pprint(msg)
 
-    def execute(self, code):
-        self._client.execute(code)
+    def execute(self, cell):
+        msg_id = self._client.execute(cell.content)
+        self._hashids[msg_id] = cell.hashid
 
     async def run(self):
         kernel = jupyter_client.KernelManager(kernel_name='python3')
@@ -97,10 +106,23 @@ class Kernel:
             self._client.shutdown()
 
 
+def get_hash(s):
+    return hashlib.sha1(s.encode()).hexdigest()
+
+
+class CellKind(Enum):
+    TEXT = 0
+    CODE = 1
+
+
+Cell = namedtuple('Cell', 'kind content hashid')
+
+
 class Source:
-    def __init__(self, kernel, path):
+    def __init__(self, path, kernel, notebooks):
         self.path = Path(path)
         self.kernel = kernel
+        self.notebooks = notebooks
         self._queue = Queue()
         self._observer = Observer()
         self._observer.schedule(FileChangedHandler(queue=self._queue), '.')
@@ -111,17 +133,33 @@ class Source:
             if file == self.path:
                 return file.read_text()
 
+    def _parse(self, src):
+        contents = src.split('```')
+        assert len(contents) % 2 == 1
+        cells = [
+            Cell(kind, con, get_hash(con)) for kind, con in zip(
+                cycle([CellKind.TEXT, CellKind.CODE]),
+                contents
+            )
+        ]
+        return cells
+
     async def run(self):
         self._observer.start()
         while True:
             src = await self.file_change()
-            self.kernel.execute(src)
+            cells = self._parse(src)
+            for nb in self.notebooks:
+                for cell in cells:
+                    nb.add_output(pformat(cell))
+                    if cell.kind == CellKind.CODE:
+                        self.kernel.execute(cell)
 
 
-async def neptune(watched):
+async def neptune(path):
     notebooks = set()
     kernel = Kernel(notebooks)
-    source = Source(kernel, watched)
+    source = Source(path, kernel, notebooks)
 
     async def handler(ws, path):
         nb = Notebook(ws)

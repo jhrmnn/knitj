@@ -11,7 +11,7 @@ from neptune import neptune
 def parse_cli():
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg('watched', metavar='FILE')
+    arg('path', metavar='FILE')
     return vars(parser.parse_args())
 
 
