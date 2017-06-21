@@ -32,19 +32,22 @@ class FileChangedHandler(FileSystemEventHandler):
 
 class Notebook:
     def __init__(self, ws):
-        self._ws = ws
-        print('Got client:', self._ws)
-        self.output_queue = Queue()
+        self.ws = ws
+        print('Got client:', self.ws)
+        self._output_queue = Queue()
 
     async def sender(self):
         while True:
-            data = await self.output_queue.get()
-            await self._ws.send(data)
+            data = await self._output_queue.get()
+            await self.ws.send(data)
 
     async def receiver(self):
         while True:
-            data = await self._ws.recv()
-            print(self._ws, data)
+            data = await self.ws.recv()
+            print(self.ws, data)
+
+    def add_output(self, data):
+        self._output_queue.put_nowait(data)
 
     async def run(self):
         sender = asyncio.ensure_future(self.sender())
@@ -56,20 +59,20 @@ class Notebook:
         try:
             future.result()
         except websockets.ConnectionClosed as e:
-            print('Notebook disconnected:', self._ws)
+            print('Notebook disconnected:', self.ws)
             sender.cancel()
             receiver.cancel()
 
 
 class Kernel:
     def __init__(self, notebooks):
-        self.kernel = jupyter_client.KernelManager(kernel_name='python3')
-        self.kernel.start_kernel()
-        self.client = self.kernel.blocking_client()
         self.notebooks = notebooks
+        self._kernel = jupyter_client.KernelManager(kernel_name='python3')
+        self._kernel.start_kernel()
+        self._client = self._kernel.blocking_client()
         self._loop = asyncio.get_event_loop()
 
-    async def get_msg(self, func):
+    async def _get_msg(self, func):
         return await self._loop.run_in_executor(
             None, functools.partial(func, timeout=1)
         )
@@ -77,23 +80,23 @@ class Kernel:
     async def iopub_receiver(self):
         while True:
             try:
-                msg = await self.get_msg(self.client.get_iopub_msg)
+                msg = await self._get_msg(self._client.get_iopub_msg)
             except queue.Empty:
                 continue
             data = pformat(msg)
             for nb in self.notebooks:
-                nb.output_queue.put_nowait(data)
+                nb.add_output(data)
 
     async def shell_receiver(self):
         while True:
             try:
-                msg = await self.get_msg(self.client.get_shell_msg)
+                msg = await self._get_msg(self._client.get_shell_msg)
             except queue.Empty:
                 continue
             pprint(msg)
 
     def execute(self, code):
-        self.client.execute(code)
+        self._client.execute(code)
 
     async def run(self):
         try:
@@ -102,7 +105,7 @@ class Kernel:
                 return_when=asyncio.FIRST_COMPLETED,
             )
         finally:
-            self.client.shutdown()
+            self._client.shutdown()
 
 
 async def watcher(kernel, watched):
