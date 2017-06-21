@@ -108,30 +108,40 @@ class Kernel:
             self._client.shutdown()
 
 
-async def watcher(kernel, watched):
-    watched = Path(watched)
-    queue = Queue()
-    observer = Observer()
-    observer.schedule(FileChangedHandler(queue=queue), '.')
-    observer.start()
-    while True:
-        file = Path(await queue.get())
-        if file == watched:
-            code = file.read_text()
-            kernel.execute(code)
+class Source:
+    def __init__(self, kernel, watched):
+        self.watched = Path(watched)
+        self.kernel = kernel
+        self._queue = Queue()
+        self._observer = Observer()
+        self._observer.schedule(FileChangedHandler(queue=self._queue), '.')
+        self._observer.start()
+
+    async def file_change(self):
+        while True:
+            file = Path(await self._queue.get())
+            if file == self.watched:
+                return file.read_text()
+
+    async def run(self):
+        while True:
+            src = await self.file_change()
+            self.kernel.execute(src)
 
 
 async def neptune(watched):
     notebooks = set()
     kernel = Kernel(notebooks)
+    source = Source(kernel, watched)
 
     async def handler(ws, path):
         nb = Notebook(ws)
         notebooks.add(nb)
         await nb.run()
         notebooks.remove(nb)
+
     await asyncio.gather(
         websockets.serve(handler, 'localhost', 6060),
-        watcher(kernel, watched),
+        source.run(),
         kernel.run()
     )
