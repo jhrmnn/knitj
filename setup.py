@@ -24,5 +24,10 @@ setup(
         'Topic :: Utilities',
     ],
     license='Mozilla Public License 2.0',
-    install_requires=['watchdog'],
+    install_requires=[
+        'watchdog',
+        'ipykernel',
+        'jupyter-client',
+        'websockets',
+    ],
 )
