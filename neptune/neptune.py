@@ -32,16 +32,16 @@ class FileChangedHandler(FileSystemEventHandler):
 
 class Notebook:
     def __init__(self, ws):
+        print('Got client:', ws)
         self.ws = ws
-        print('Got client:', self.ws)
         self._output_queue = Queue()
 
-    async def sender(self):
+    async def _sender(self):
         while True:
             data = await self._output_queue.get()
             await self.ws.send(data)
 
-    async def receiver(self):
+    async def _receiver(self):
         while True:
             data = await self.ws.recv()
             print(self.ws, data)
@@ -51,7 +51,7 @@ class Notebook:
 
     async def run(self):
         try:
-            await asyncio.gather(self.sender(), self.receiver())
+            await asyncio.gather(self._sender(), self._receiver())
         except websockets.ConnectionClosed as e:
             print('Notebook disconnected:', self.ws)
 
@@ -59,9 +59,6 @@ class Notebook:
 class Kernel:
     def __init__(self, notebooks):
         self.notebooks = notebooks
-        self._kernel = jupyter_client.KernelManager(kernel_name='python3')
-        self._kernel.start_kernel()
-        self._client = self._kernel.blocking_client()
         self._loop = asyncio.get_event_loop()
 
     async def _get_msg(self, func):
@@ -69,7 +66,7 @@ class Kernel:
             None, functools.partial(func, timeout=1)
         )
 
-    async def iopub_receiver(self):
+    async def _iopub_receiver(self):
         while True:
             try:
                 msg = await self._get_msg(self._client.get_iopub_msg)
@@ -79,7 +76,7 @@ class Kernel:
             for nb in self.notebooks:
                 nb.add_output(data)
 
-    async def shell_receiver(self):
+    async def _shell_receiver(self):
         while True:
             try:
                 msg = await self._get_msg(self._client.get_shell_msg)
@@ -91,30 +88,31 @@ class Kernel:
         self._client.execute(code)
 
     async def run(self):
+        kernel = jupyter_client.KernelManager(kernel_name='python3')
         try:
-            await asyncio.gather(
-                self.iopub_receiver(), self.shell_receiver(),
-            )
+            kernel.start_kernel()
+            self._client = kernel.client()
+            await asyncio.gather(self._iopub_receiver(), self._shell_receiver())
         finally:
             self._client.shutdown()
 
 
 class Source:
-    def __init__(self, kernel, watched):
-        self.watched = Path(watched)
+    def __init__(self, kernel, path):
+        self.path = Path(path)
         self.kernel = kernel
         self._queue = Queue()
         self._observer = Observer()
         self._observer.schedule(FileChangedHandler(queue=self._queue), '.')
-        self._observer.start()
 
     async def file_change(self):
         while True:
             file = Path(await self._queue.get())
-            if file == self.watched:
+            if file == self.path:
                 return file.read_text()
 
     async def run(self):
+        self._observer.start()
         while True:
             src = await self.file_change()
             self.kernel.execute(src)
