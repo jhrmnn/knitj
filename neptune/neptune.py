@@ -50,18 +50,10 @@ class Notebook:
         self._output_queue.put_nowait(data)
 
     async def run(self):
-        sender = asyncio.ensure_future(self.sender())
-        receiver = asyncio.ensure_future(self.receiver())
-        (future,), _ = await asyncio.wait(
-            [sender, receiver],
-            return_when=asyncio.FIRST_COMPLETED,
-        )
         try:
-            future.result()
+            await asyncio.gather(self.sender(), self.receiver())
         except websockets.ConnectionClosed as e:
             print('Notebook disconnected:', self.ws)
-            sender.cancel()
-            receiver.cancel()
 
 
 class Kernel:
@@ -100,9 +92,8 @@ class Kernel:
 
     async def run(self):
         try:
-            await asyncio.wait(
-                [self.iopub_receiver(), self.shell_receiver()],
-                return_when=asyncio.FIRST_COMPLETED,
+            await asyncio.gather(
+                self.iopub_receiver(), self.shell_receiver(),
             )
         finally:
             self._client.shutdown()
