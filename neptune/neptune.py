@@ -53,6 +53,7 @@ async def neptune(watched):
     async def handler(ws, path):
         clients.append(ws)
         await notebook(ws)
-    server = websockets.serve(handler, 'localhost', 6060)
-    asyncio.get_event_loop().create_task(server)
-    await watcher(clients, watched)
+    await asyncio.gather(
+        websockets.serve(handler, 'localhost', 6060),
+        watcher(clients, watched)
+    )
