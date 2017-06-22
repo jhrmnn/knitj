@@ -35,7 +35,7 @@ ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
   if (msg.kind == 'cell') {
     console.log(msg.content);
-    const cell = elem_from_html(msg.content)
+    const cell = elem_from_html(msg.html)
     cell.appendChild(h('button', (button) => {
       button.onclick = () => { reevaluate(msg.hashid); };
       button.textContent = 'Reevaluate';
@@ -50,7 +50,7 @@ ws.onmessage = ({ data }) => {
       if (hashid in last_render) {
         new_render[hashid] = last_render[hashid];
       } else {
-        new_render[hashid] = elem_from_html(msg.contents[hashid]);
+        new_render[hashid] = elem_from_html(msg.htmls[hashid]);
       }
       cells_el.appendChild(new_render[hashid]);
     });

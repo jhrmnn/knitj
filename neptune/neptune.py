@@ -50,11 +50,12 @@ class Cell:
         self.hashid = hashid
 
 
-class Document(NamedTuple):
+class Render(NamedTuple):
     hashids: List[Hash]
-    cells: Dict[Hash, Cell]
+    htmls: Dict[Hash, HTML]
 
 
+Document = List[Cell]
 RenderTask = Union[Cell, Document]
 if TYPE_CHECKING:
     FileModifiedQueue = Queue[str]
@@ -132,7 +133,7 @@ class Renderer:
     def __init__(self, notebooks: Set[Notebook]) -> None:
         self.notebooks = notebooks
         self._task_queue: RenderTaskQueue = Queue()
-        self._last_render = Document([], {})
+        self._last_render = Render([], {})
 
     def add_task(self, task: RenderTask) -> None:
         self._task_queue.put_nowait(task)
@@ -143,30 +144,25 @@ class Renderer:
             if isinstance(task, Cell):
                 cell = task
                 html = cell_to_html(cell)
-                self._last_render.cells[cell.hashid] = Cell(
-                    Cell.Kind.OUTPUT, html, cell.hashid
-                )
+                self._last_render.htmls[cell.hashid] = html
                 msg: Msg = dict(
                     kind='cell',
                     hashid=cell.hashid,
-                    content=html,
+                    html=html,
                 )
             else:
                 document = task
+                self._last_render = Render(
+                    [cell.hashid for cell in document],
+                    {cell.hashid: (
+                        self._last_render.htmls.get(cell.hashid) or
+                        cell_to_html(cell)
+                    ) for cell in document}
+                )
                 msg = dict(
                     kind='document',
-                    hashids=document.hashids,
-                    contents={
-                        hashid: cell_to_html(cell)
-                        for hashid, cell in document.cells.items()
-                    },
-                )
-                self._last_render = Document(
-                    document.hashids.copy(),
-                    {hashid: (
-                        document.cells.get(hashid) or
-                        self._last_render.cells[hashid]
-                    ) for hashid in document.hashids}
+                    hashids=self._last_render.hashids,
+                    htmls=self._last_render.htmls,
                 )
             data = Data(json.dumps(msg))
             for nb in self.notebooks:
@@ -222,7 +218,9 @@ class Kernel:
                 elif msg['content']['status'] == 'error':
                     cell = Cell(
                         Cell.Kind.OUTPUT,
-                        self._conv.convert('\n'.join(msg['content']['traceback']), full=False),
+                        self._conv.convert(
+                            '\n'.join(msg['content']['traceback']), full=False
+                        ),
                         hashid
                     )
                     self.renderer.add_task(cell)
@@ -236,7 +234,7 @@ class Kernel:
         self._hashids[msg_id] = cell.hashid
 
     def execute_hashid(self, hashid: Hash) -> None:
-        self.execute(self._input_cells[hashid])
+        self.execute(self._input_cells.pop(hashid))
 
     async def run(self) -> None:
         kernel = jupyter_client.KernelManager(kernel_name='python3')
@@ -260,7 +258,7 @@ class Source:
         self._queue: FileModifiedQueue = Queue()
         self._observer = Observer()
         self._observer.schedule(FileChangedHandler(queue=self._queue), '.')
-        self._last_save: Set[Hash] = set()
+        self._last_inputs: Set[Hash] = set()
 
     async def file_change(self) -> str:
         while True:
@@ -268,34 +266,29 @@ class Source:
             if file == self.path:
                 return file.read_text()
 
-    def _parse(self, src: str) -> List[Cell]:
+    def _parse(self, src: str) -> Document:
         contents = src.split('```')
         assert len(contents) % 2 == 1
-        cells = [
+        return [
             Cell(kind, con.strip(), get_hash(con)) for kind, con in zip(
                 cycle([Cell.Kind.TEXT, Cell.Kind.INPUT]),
                 contents
             )
         ]
-        return cells
 
     async def run(self) -> None:
         self._observer.start()
         while True:
             src = await self.file_change()
-            cells = self._parse(src)
-            document = Document(
-                hashids=[cell.hashid for cell in cells],
-                cells={
-                    cell.hashid: cell for cell in cells
-                    if cell.hashid not in self._last_save
-                }
-            )
+            document = self._parse(src)
             self.renderer.add_task(document)
-            for cell in document.cells.values():
+            for cell in document:
                 if cell.kind == Cell.Kind.INPUT:
-                    self.kernel.execute(cell)
-            self._last_save = set(document.hashids)
+                    if cell.hashid not in self._last_inputs:
+                        self.kernel.execute(cell)
+            self._last_inputs = set(
+                cell.hashid for cell in document if cell.kind == Cell.Kind.INPUT
+            )
 
 
 async def neptune(path: str) -> None:
