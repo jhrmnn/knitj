@@ -31,6 +31,8 @@ WebSocket = websockets.WebSocketServerProtocol
 
 
 Hash = NewType('Hash', str)
+Msg = Dict[str, Any]
+Data = NewType('Data', str)
 MsgId = NewType('MsgId', str)
 HTML = NewType('HTML', str)
 
@@ -49,10 +51,12 @@ class Cell(NamedTuple):
 
 if TYPE_CHECKING:
     FileModifiedQueue = Queue[str]
-    CellQueue = Queue[Union[Cell, List[Cell]]]
+    RenderTaskQueue = Queue[Union[Cell, List[Cell]]]
+    DataQueue = Queue[Data]
 else:
     FileModifiedQueue = None
-    CellQueue = None
+    RenderTaskQueue = None
+    DataQueue = None
 
 
 class FileChangedHandler(FileSystemEventHandler):
@@ -71,6 +75,32 @@ class FileChangedHandler(FileSystemEventHandler):
         self._queue_modified(event)
 
 
+class Notebook:
+    def __init__(self, ws: WebSocket) -> None:
+        print('Got client:', ws)
+        self.ws = ws
+        self._msg_queue: DataQueue = Queue()
+
+    async def _sender(self) -> None:
+        while True:
+            msg = await self._msg_queue.get()
+            await self.ws.send(msg)
+
+    async def _receiver(self) -> None:
+        while True:
+            data = await self.ws.recv()
+            print(self.ws, data)
+
+    def queue_msg(self, msg: Data) -> None:
+        self._msg_queue.put_nowait(msg)
+
+    async def run(self) -> None:
+        try:
+            await asyncio.gather(self._sender(), self._receiver())
+        except websockets.ConnectionClosed as e:
+            print('Notebook disconnected:', self.ws)
+
+
 def cell_to_html(cell: Cell) -> HTML:
     elem = {
         CellKind.INPUT: 'pre',
@@ -87,58 +117,46 @@ def cell_to_html(cell: Cell) -> HTML:
     )
 
 
-class Notebook:
-    def __init__(self, ws: WebSocket) -> None:
-        print('Got client:', ws)
-        self.ws = ws
-        self._cell_queue: CellQueue = Queue()
+class Renderer:
+    def __init__(self, notebooks: Set[Notebook]) -> None:
+        self.notebooks = notebooks
+        self._task_queue: RenderTaskQueue = Queue()
 
-    async def _sender(self) -> None:
+    def add_task(self, task: Union[Cell, List[Cell]]) -> None:
+        self._task_queue.put_nowait(task)
+
+    async def run(self) -> None:
         while True:
-            item = await self._cell_queue.get()
-            if isinstance(item, Cell):
-                cell = item
-                await self.ws.send(json.dumps(dict(
+            task = await self._task_queue.get()
+            if isinstance(task, Cell):
+                cell = task
+                msg: Msg = dict(
                     kind='cell',
                     content=cell_to_html(cell),
                     hashid=cell.hashid
-                )))
+                )
             else:
-                cells = item
-                await self.ws.send(json.dumps(dict(
+                cells = task
+                msg = dict(
                     kind='document',
                     cells=[cell.hashid for cell in cells],
                     contents={cell.hashid: cell_to_html(cell) for cell in cells},
-                )))
-
-    async def _receiver(self) -> None:
-        while True:
-            data = await self.ws.recv()
-            print(self.ws, data)
-
-    def rerender(self, cells: List[Cell]) -> None:
-        self._cell_queue.put_nowait(cells)
-
-    def add_cell(self, cell: Cell) -> None:
-        self._cell_queue.put_nowait(cell)
-
-    async def run(self) -> None:
-        try:
-            await asyncio.gather(self._sender(), self._receiver())
-        except websockets.ConnectionClosed as e:
-            print('Notebook disconnected:', self.ws)
+                )
+            data = Data(json.dumps(msg))
+            for nb in self.notebooks:
+                nb.queue_msg(data)
 
 
 class Kernel:
-    def __init__(self, notebooks: Set[Notebook]) -> None:
-        self.notebooks = notebooks
+    def __init__(self, renderer: Renderer) -> None:
+        self.renderer = renderer
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[MsgId, Hash] = {}
 
     async def _get_msg(self,
-                       func: Callable[[DefaultNamedArg(int, 'timeout')], Dict[str, Any]],
-                       ) -> Dict[str, Any]:
-        def partial() -> Dict[str, Any]:
+                       func: Callable[[DefaultNamedArg(int, 'timeout')], Msg],
+                       ) -> Msg:
+        def partial() -> Msg:
             return func(timeout=1)
         return await self._loop.run_in_executor(None, partial)
 
@@ -151,8 +169,7 @@ class Kernel:
             if msg['msg_type'] == 'execute_result':
                 hashid = self._hashids[msg['parent_header']['msg_id']]
                 cell = Cell(CellKind.OUTPUT, msg['content']['data']['text/plain'], hashid)
-                for nb in self.notebooks:
-                    nb.add_cell(cell)
+                self.renderer.add_task(cell)
             pprint(msg)
 
     async def _shell_receiver(self) -> None:
@@ -182,10 +199,10 @@ def get_hash(s: str) -> Hash:
 
 
 class Source:
-    def __init__(self, path: str, kernel: Kernel, notebooks: Set[Notebook]) -> None:
+    def __init__(self, path: str, kernel: Kernel, renderer: Renderer) -> None:
         self.path = Path(path)
         self.kernel = kernel
-        self.notebooks = notebooks
+        self.renderer = renderer
         self._queue: FileModifiedQueue = Queue()
         self._observer = Observer()
         self._observer.schedule(FileChangedHandler(queue=self._queue), '.')
@@ -212,8 +229,7 @@ class Source:
         while True:
             src = await self.file_change()
             cells = self._parse(src)
-            for nb in self.notebooks:
-                nb.rerender(cells)
+            self.renderer.add_task(cells)
             for cell in cells:
                 if cell.kind == CellKind.INPUT:
                     self.kernel.execute(cell)
@@ -221,8 +237,9 @@ class Source:
 
 async def neptune(path: str) -> None:
     notebooks: Set[Notebook] = set()
-    kernel = Kernel(notebooks)
-    source = Source(path, kernel, notebooks)
+    renderer = Renderer(notebooks)
+    kernel = Kernel(renderer)
+    source = Source(path, kernel, renderer)
 
     async def handler(ws: WebSocket, path: str) -> None:
         nb = Notebook(ws)
@@ -232,6 +249,7 @@ async def neptune(path: str) -> None:
 
     await asyncio.gather(
         websockets.serve(handler, 'localhost', 6060),
+        renderer.run(),
         source.run(),
-        kernel.run()
+        kernel.run(),
     )
