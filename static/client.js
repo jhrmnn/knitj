@@ -11,21 +11,29 @@ function h(tagName, func) {
   return el;
 }
 
+function elem_from_html(html) {
+  const el = document.createElement('div');
+  el.innerHTML = html;
+  return el.childNodes[0];
+}
+
 const ws = new WebSocket('ws://localhost:6060');
 
 window.setInterval(() => { ws.send(''); }, 50000);
 
+const cells = new Map()
+
 ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
   if (msg.kind == 'cell') {
-    const el = document.createElement('div');
-    el.innerHTML = msg.content;
-    const cell = el.childNodes[0];
+    const cell = elem_from_html(msg.content)
     const orig_cell = document.getElementById(msg.hashid);
-    if (orig_cell) {
-      orig_cell.replaceWith(cell);
-    } else {
-      document.getElementById('cells').appendChild(cell);
-    }
+    orig_cell.replaceWith(cell);
+  } else if (msg.kind == 'document') {
+    const cells_el = h('div', (div) => { div.id = 'cells'; });
+    msg.cells.forEach((hashid) => {
+      cells_el.appendChild(elem_from_html(msg.contents[hashid]));
+    });
+    document.getElementById('cells').replaceWith(cells_el);
   }
 };

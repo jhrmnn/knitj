@@ -19,7 +19,8 @@ from watchdog.events import FileSystemEventHandler
 
 # ~~~ typing imports ~~~
 from typing import (  # noqa
-    TYPE_CHECKING, Any, NewType, Set, Dict, Awaitable, Callable, List
+    TYPE_CHECKING, Any, NewType, Set, Dict, Awaitable, Callable, List,
+    Union
 )
 from mypy_extensions import (  # noqa
     Arg, DefaultArg, NamedArg, DefaultNamedArg, VarArg, KwArg
@@ -48,7 +49,7 @@ class Cell(NamedTuple):
 
 if TYPE_CHECKING:
     FileModifiedQueue = Queue[str]
-    CellQueue = Queue[Cell]
+    CellQueue = Queue[Union[Cell, List[Cell]]]
 else:
     FileModifiedQueue = None
     CellQueue = None
@@ -94,17 +95,29 @@ class Notebook:
 
     async def _sender(self) -> None:
         while True:
-            cell = await self._cell_queue.get()
-            await self.ws.send(json.dumps(dict(
-                kind='cell',
-                content=cell_to_html(cell),
-                hashid=cell.hashid
-            )))
+            item = await self._cell_queue.get()
+            if isinstance(item, Cell):
+                cell = item
+                await self.ws.send(json.dumps(dict(
+                    kind='cell',
+                    content=cell_to_html(cell),
+                    hashid=cell.hashid
+                )))
+            else:
+                cells = item
+                await self.ws.send(json.dumps(dict(
+                    kind='document',
+                    cells=[cell.hashid for cell in cells],
+                    contents={cell.hashid: cell_to_html(cell) for cell in cells},
+                )))
 
     async def _receiver(self) -> None:
         while True:
             data = await self.ws.recv()
             print(self.ws, data)
+
+    def rerender(self, cells: List[Cell]) -> None:
+        self._cell_queue.put_nowait(cells)
 
     def add_cell(self, cell: Cell) -> None:
         self._cell_queue.put_nowait(cell)
@@ -200,10 +213,10 @@ class Source:
             src = await self.file_change()
             cells = self._parse(src)
             for nb in self.notebooks:
-                for cell in cells:
-                    nb.add_cell(cell)
-                    if cell.kind == CellKind.INPUT:
-                        self.kernel.execute(cell)
+                nb.rerender(cells)
+            for cell in cells:
+                if cell.kind == CellKind.INPUT:
+                    self.kernel.execute(cell)
 
 
 async def neptune(path: str) -> None:
