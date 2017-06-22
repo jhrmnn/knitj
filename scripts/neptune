@@ -8,7 +8,7 @@ import asyncio
 from neptune import neptune
 
 
-def parse_cli():
+def parse_cli() -> dict:
     parser = ArgumentParser()
     arg = parser.add_argument
     arg('path', metavar='FILE')

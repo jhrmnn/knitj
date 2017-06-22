@@ -1,0 +1,6 @@
+from .events import FileSystemEventHandler
+
+class Observer:
+    def start(self) -> None: ...
+    def schedule(self, event_handler: FileSystemEventHandler,
+                 path: str, recursive: bool = False) -> None: ...

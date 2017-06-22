@@ -29,5 +29,6 @@ setup(
         'ipykernel',
         'jupyter-client',
         'websockets',
+        'mypy_extensions',
     ],
 )
