@@ -44,10 +44,22 @@ class Cell:
         INPUT = 1
         OUTPUT = 2
 
-    def __init__(self, kind: 'Cell.Kind', content: str, hashid: Hash) -> None:
+    _html_params = {
+        Kind.INPUT: ('pre', 'input-cell'),
+        Kind.OUTPUT: ('pre', 'output-cell'),
+        Kind.TEXT: ('p', 'text-cell'),
+    }
+
+    def __init__(self, kind: Kind, content: str, hashid: Hash) -> None:
         self.kind = kind
         self.content = content
         self.hashid = hashid
+
+    def to_html(self) -> HTML:
+        elem, klass = Cell._html_params[self.kind]
+        return HTML(
+            f'<{elem} id="{self.hashid}" class="{klass}">{self.content}</{elem}>'
+        )
 
 
 class Render(NamedTuple):
@@ -113,22 +125,6 @@ class Notebook:
             print('Notebook disconnected:', self.ws)
 
 
-def cell_to_html(cell: Cell) -> HTML:
-    elem = {
-        Cell.Kind.INPUT: 'pre',
-        Cell.Kind.OUTPUT: 'pre',
-        Cell.Kind.TEXT: 'p',
-    }[cell.kind]
-    klass = {
-        Cell.Kind.INPUT: 'input-cell',
-        Cell.Kind.OUTPUT: 'output-cell',
-        Cell.Kind.TEXT: 'text-cell',
-    }[cell.kind]
-    return HTML(
-        f'<{elem} id="{cell.hashid}" class="{klass}">{cell.content}</{elem}>'
-    )
-
-
 class Renderer:
     def __init__(self, notebooks: Set[Notebook]) -> None:
         self.notebooks = notebooks
@@ -139,7 +135,7 @@ class Renderer:
         self._task_queue.put_nowait(task)
 
     def _render_cell(self, cell: Cell) -> Msg:
-        html = cell_to_html(cell)
+        html = cell.to_html()
         self._last_render.htmls[cell.hashid] = html
         return dict(
             kind='cell',
@@ -151,8 +147,7 @@ class Renderer:
         self._last_render = Render(
             [cell.hashid for cell in document],
             {cell.hashid: (
-                self._last_render.htmls.get(cell.hashid) or
-                cell_to_html(cell)
+                self._last_render.htmls.get(cell.hashid) or cell.to_html()
             ) for cell in document}
         )
         return dict(
