@@ -292,12 +292,17 @@ class Source:
     def _parse(self, src: str) -> Document:
         contents = src.split('```')
         assert len(contents) % 2 == 1
-        return [
-            Cell(kind, con.strip(), get_hash(con)) for kind, con in zip(
-                cycle([Cell.Kind.TEXT, Cell.Kind.INPUT]),
-                contents
-            )
-        ]
+        cells = []
+        for kind, con in zip(cycle([Cell.Kind.TEXT, Cell.Kind.INPUT]), contents):
+            if kind == Cell.Kind.INPUT:
+                if con[:6] == 'python':
+                    con = con[6:]
+                else:
+                    con = f'```{con}```'
+                    kind = Cell.Kind.TEXT
+            con = con.strip()
+            cells.append(Cell(kind, con.strip(), get_hash(con)))
+        return cells
 
     async def run(self) -> None:
         self._observer.start()
