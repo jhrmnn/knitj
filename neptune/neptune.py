@@ -138,32 +138,36 @@ class Renderer:
     def add_task(self, task: RenderTask) -> None:
         self._task_queue.put_nowait(task)
 
+    def _render_cell(self, cell: Cell) -> Msg:
+        html = cell_to_html(cell)
+        self._last_render.htmls[cell.hashid] = html
+        return dict(
+            kind='cell',
+            hashid=cell.hashid,
+            html=html,
+        )
+
+    def _render_document(self, document: Document) -> Msg:
+        self._last_render = Render(
+            [cell.hashid for cell in document],
+            {cell.hashid: (
+                self._last_render.htmls.get(cell.hashid) or
+                cell_to_html(cell)
+            ) for cell in document}
+        )
+        return dict(
+            kind='document',
+            hashids=self._last_render.hashids,
+            htmls=self._last_render.htmls,
+        )
+
     async def run(self) -> None:
         while True:
             task = await self._task_queue.get()
             if isinstance(task, Cell):
-                cell = task
-                html = cell_to_html(cell)
-                self._last_render.htmls[cell.hashid] = html
-                msg: Msg = dict(
-                    kind='cell',
-                    hashid=cell.hashid,
-                    html=html,
-                )
+                msg = self._render_cell(task)
             else:
-                document = task
-                self._last_render = Render(
-                    [cell.hashid for cell in document],
-                    {cell.hashid: (
-                        self._last_render.htmls.get(cell.hashid) or
-                        cell_to_html(cell)
-                    ) for cell in document}
-                )
-                msg = dict(
-                    kind='document',
-                    hashids=self._last_render.hashids,
-                    htmls=self._last_render.htmls,
-                )
+                msg = self._render_document(task)
             data = Data(json.dumps(msg))
             for nb in self.notebooks:
                 nb.queue_msg(data)
