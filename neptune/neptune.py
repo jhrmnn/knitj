@@ -143,6 +143,14 @@ class Renderer:
             html=html,
         )
 
+    @property
+    def _render_msg(self) -> Msg:
+        return dict(
+            kind='document',
+            hashids=self._last_render.hashids,
+            htmls=self._last_render.htmls,
+        )
+
     def _render_document(self, document: Document) -> Msg:
         self._last_render = Render(
             [cell.hashid for cell in document],
@@ -150,18 +158,18 @@ class Renderer:
                 self._last_render.htmls.get(cell.hashid) or cell.to_html()
             ) for cell in document}
         )
-        return dict(
-            kind='document',
-            hashids=self._last_render.hashids,
-            htmls=self._last_render.htmls,
-        )
+        return self._render_msg
+
+    def render_initial(self, nb: Notebook) -> None:
+        data = Data(json.dumps(self._render_msg))
+        nb.queue_msg(data)
 
     async def run(self) -> None:
         while True:
             task = await self._task_queue.get()
             if isinstance(task, Cell):
                 msg = self._render_cell(task)
-            else:
+            elif isinstance(task, list):
                 msg = self._render_document(task)
             data = Data(json.dumps(msg))
             for nb in self.notebooks:
@@ -298,6 +306,7 @@ async def neptune(path: str) -> None:
 
     async def handler(ws: WebSocket, path: str) -> None:
         nb = Notebook(ws, kernel)
+        renderer.render_initial(nb)
         notebooks.add(nb)
         await nb.run()
         notebooks.remove(nb)

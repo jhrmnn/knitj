@@ -29,6 +29,13 @@ function reevaluate(hashid) {
   send({ kind: 'reevaluate', hashid });
 }
 
+function appendReevaluate(cell) {
+  cell.appendChild(h('button', (button) => {
+    button.onclick = () => { reevaluate(msg.hashid); };
+    button.textContent = 'Reevaluate';
+  }));
+}
+
 let last_render = new Map()
 
 ws.onmessage = ({ data }) => {
@@ -36,10 +43,7 @@ ws.onmessage = ({ data }) => {
   if (msg.kind == 'cell') {
     console.log(msg.content);
     const cell = elem_from_html(msg.html)
-    cell.appendChild(h('button', (button) => {
-      button.onclick = () => { reevaluate(msg.hashid); };
-      button.textContent = 'Reevaluate';
-    }));
+    appendReevaluate(cell);
     const orig_cell = document.getElementById(msg.hashid);
     orig_cell.replaceWith(cell);
     last_render[msg.hashid] = cell;
@@ -47,12 +51,17 @@ ws.onmessage = ({ data }) => {
     const cells_el = h('div', (div) => { div.id = 'cells'; });
     const new_render = new Map();
     msg.hashids.forEach((hashid) => {
+      let cell;
       if (hashid in last_render) {
-        new_render[hashid] = last_render[hashid];
+        cell = last_render[hashid];
       } else {
-        new_render[hashid] = elem_from_html(msg.htmls[hashid]);
+        cell = elem_from_html(msg.htmls[hashid]);
+        if (cell.className == 'output-cell') {
+          appendReevaluate(cell);
+        }
       }
-      cells_el.appendChild(new_render[hashid]);
+      cells_el.appendChild(cell);
+      new_render[hashid] = cell;
     });
     document.getElementById('cells').replaceWith(cells_el);
     last_render = new_render;
