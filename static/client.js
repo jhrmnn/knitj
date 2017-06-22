@@ -19,7 +19,7 @@ function elem_from_html(html) {
 
 const ws = new WebSocket('ws://localhost:6060');
 
-window.setInterval(() => { ws.send(''); }, 50000);
+window.setInterval(() => { ws.send('PING'); }, 50000);
 
 const cells = new Map()
 
