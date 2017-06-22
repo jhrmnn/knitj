@@ -164,7 +164,7 @@ class Source:
         contents = src.split('```')
         assert len(contents) % 2 == 1
         cells = [
-            Cell(kind, con, get_hash(con)) for kind, con in zip(
+            Cell(kind, con.strip(), get_hash(con)) for kind, con in zip(
                 cycle([CellKind.TEXT, CellKind.CODE]),
                 contents
             )
