@@ -16,6 +16,7 @@ import websockets
 import jupyter_client
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+from ansi2html import Ansi2HTMLConverter
 
 # ~~~ typing imports ~~~
 from typing import (  # noqa
@@ -157,6 +158,7 @@ class Kernel:
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[MsgId, Hash] = {}
         self._input_cells: Dict[Hash, Cell] = {}
+        self._conv = Ansi2HTMLConverter()
 
     async def _get_msg(self,
                        func: Callable[[DefaultNamedArg(int, 'timeout')], Msg],
@@ -165,6 +167,9 @@ class Kernel:
             return func(timeout=1)
         return await self._loop.run_in_executor(None, partial)
 
+    def _get_parent(self, msg: Msg) -> Hash:
+        return self._hashids[msg['parent_header']['msg_id']]
+
     async def _iopub_receiver(self) -> None:
         while True:
             try:
@@ -172,14 +177,15 @@ class Kernel:
             except queue.Empty:
                 continue
             if msg['msg_type'] == 'execute_result':
-                hashid = self._hashids[msg['parent_header']['msg_id']]
+                hashid = self._get_parent(msg)
                 cell = Cell(CellKind.OUTPUT, msg['content']['data']['text/plain'], hashid)
                 self.renderer.add_task(cell)
             elif msg['msg_type'] == 'stream':
-                hashid = self._hashids[msg['parent_header']['msg_id']]
+                hashid = self._get_parent(msg)
                 assert msg['content']['name'] == 'stdout'
                 cell = Cell(CellKind.OUTPUT, msg['content']['text'].strip(), hashid)
                 self.renderer.add_task(cell)
+            print('IOPUB: ', end='')
             pprint(msg)
 
     async def _shell_receiver(self) -> None:
@@ -188,6 +194,18 @@ class Kernel:
                 msg = await self._get_msg(self._client.get_shell_msg)
             except queue.Empty:
                 continue
+            if msg['msg_type'] == 'execute_reply':
+                hashid = self._get_parent(msg)
+                if msg['content']['status'] == 'ok':
+                    pass
+                elif msg['content']['status'] == 'error':
+                    cell = Cell(
+                        CellKind.OUTPUT,
+                        self._conv.convert('\n'.join(msg['content']['traceback']), full=False),
+                        hashid
+                    )
+                    self.renderer.add_task(cell)
+            print('SHELL: ', end='')
             pprint(msg)
 
     def execute(self, cell: Cell) -> None:
