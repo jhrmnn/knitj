@@ -19,14 +19,27 @@ function elem_from_html(html) {
 
 const ws = new WebSocket('ws://localhost:6060');
 
-window.setInterval(() => { ws.send('PING'); }, 50000);
+function send(msg) {
+  ws.send(JSON.stringify(msg));
+}
+
+window.setInterval(() => { send({ kind: 'ping' }); }, 50000);
 
 const cells = new Map()
+
+function reevaluate(hashid) {
+  send({ kind: 'reevaluate', hashid });
+}
 
 ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
   if (msg.kind == 'cell') {
+    console.log(msg.content);
     const cell = elem_from_html(msg.content)
+    cell.appendChild(h('button', (button) => {
+      button.onclick = () => { reevaluate(msg.hashid); };
+      button.textContent = 'Reevaluate';
+    }));
     const orig_cell = document.getElementById(msg.hashid);
     orig_cell.replaceWith(cell);
   } else if (msg.kind == 'document') {

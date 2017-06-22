@@ -76,9 +76,10 @@ class FileChangedHandler(FileSystemEventHandler):
 
 
 class Notebook:
-    def __init__(self, ws: WebSocket) -> None:
+    def __init__(self, ws: WebSocket, kernel: 'Kernel') -> None:
         print('Got client:', ws)
         self.ws = ws
+        self.kernel = kernel
         self._msg_queue: DataQueue = Queue()
 
     async def _sender(self) -> None:
@@ -89,6 +90,9 @@ class Notebook:
     async def _receiver(self) -> None:
         while True:
             data = await self.ws.recv()
+            msg = json.loads(data)
+            if msg['kind'] == 'reevaluate':
+                self.kernel.execute_hashid(msg['hashid'])
             print(self.ws, data)
 
     def queue_msg(self, msg: Data) -> None:
@@ -152,6 +156,7 @@ class Kernel:
         self.renderer = renderer
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[MsgId, Hash] = {}
+        self._input_cells: Dict[Hash, Cell] = {}
 
     async def _get_msg(self,
                        func: Callable[[DefaultNamedArg(int, 'timeout')], Msg],
@@ -181,8 +186,13 @@ class Kernel:
             pprint(msg)
 
     def execute(self, cell: Cell) -> None:
+        assert cell.kind == CellKind.INPUT
         msg_id = MsgId(self._client.execute(cell.content))
+        self._input_cells[cell.hashid] = cell
         self._hashids[msg_id] = cell.hashid
+
+    def execute_hashid(self, hashid: Hash) -> None:
+        self.execute(self._input_cells[hashid])
 
     async def run(self) -> None:
         kernel = jupyter_client.KernelManager(kernel_name='python3')
@@ -242,7 +252,7 @@ async def neptune(path: str) -> None:
     source = Source(path, kernel, renderer)
 
     async def handler(ws: WebSocket, path: str) -> None:
-        nb = Notebook(ws)
+        nb = Notebook(ws, kernel)
         notebooks.add(nb)
         await nb.run()
         notebooks.remove(nb)
