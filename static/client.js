@@ -15,8 +15,17 @@ const ws = new WebSocket('ws://localhost:6060');
 
 window.setInterval(() => { ws.send(''); }, 50000);
 
-ws.onmessage = (message) => {
-  $('#cells').appendChild(h('pre', (pre) => {
-    pre.textContent = message.data;
-  }));
+ws.onmessage = ({ data }) => {
+  const msg = JSON.parse(data);
+  if (msg.kind == 'cell') {
+    const el = document.createElement('div');
+    el.innerHTML = msg.content;
+    const cell = el.childNodes[0];
+    const orig_cell = document.getElementById(msg.hashid);
+    if (orig_cell) {
+      orig_cell.replaceWith(cell);
+    } else {
+      document.getElementById('cells').appendChild(cell);
+    }
+  }
 };

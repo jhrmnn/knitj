@@ -4,6 +4,7 @@
 from pathlib import Path
 from pprint import pprint
 import queue
+import json
 from typing import NamedTuple
 from itertools import cycle
 import hashlib
@@ -30,11 +31,13 @@ WebSocket = websockets.WebSocketServerProtocol
 
 Hash = NewType('Hash', str)
 MsgId = NewType('MsgId', str)
+HTML = NewType('HTML', str)
 
 
 class CellKind(Enum):
     TEXT = 0
-    CODE = 1
+    INPUT = 1
+    OUTPUT = 2
 
 
 class Cell(NamedTuple):
@@ -67,6 +70,22 @@ class FileChangedHandler(FileSystemEventHandler):
         self._queue_modified(event)
 
 
+def cell_to_html(cell: Cell) -> HTML:
+    elem = {
+        CellKind.INPUT: 'pre',
+        CellKind.OUTPUT: 'pre',
+        CellKind.TEXT: 'p',
+    }[cell.kind]
+    klass = {
+        CellKind.INPUT: 'input-cell',
+        CellKind.OUTPUT: 'output-cell',
+        CellKind.TEXT: 'text-cell',
+    }[cell.kind]
+    return HTML(
+        f'<{elem} id="{cell.hashid}" class="{klass}">{cell.content}</{elem}>'
+    )
+
+
 class Notebook:
     def __init__(self, ws: WebSocket) -> None:
         print('Got client:', ws)
@@ -76,7 +95,11 @@ class Notebook:
     async def _sender(self) -> None:
         while True:
             cell = await self._cell_queue.get()
-            await self.ws.send(cell.content)
+            await self.ws.send(json.dumps(dict(
+                kind='cell',
+                content=cell_to_html(cell),
+                hashid=cell.hashid
+            )))
 
     async def _receiver(self) -> None:
         while True:
@@ -114,7 +137,7 @@ class Kernel:
                 continue
             if msg['msg_type'] == 'execute_result':
                 hashid = self._hashids[msg['parent_header']['msg_id']]
-                cell = Cell(CellKind.CODE, str(msg['content']['data']), hashid)
+                cell = Cell(CellKind.OUTPUT, msg['content']['data']['text/plain'], hashid)
                 for nb in self.notebooks:
                     nb.add_cell(cell)
             pprint(msg)
@@ -165,7 +188,7 @@ class Source:
         assert len(contents) % 2 == 1
         cells = [
             Cell(kind, con.strip(), get_hash(con)) for kind, con in zip(
-                cycle([CellKind.TEXT, CellKind.CODE]),
+                cycle([CellKind.TEXT, CellKind.INPUT]),
                 contents
             )
         ]
@@ -179,7 +202,7 @@ class Source:
             for nb in self.notebooks:
                 for cell in cells:
                     nb.add_cell(cell)
-                    if cell.kind == CellKind.CODE:
+                    if cell.kind == CellKind.INPUT:
                         self.kernel.execute(cell)
 
 
