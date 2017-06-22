@@ -175,6 +175,11 @@ class Kernel:
                 hashid = self._hashids[msg['parent_header']['msg_id']]
                 cell = Cell(CellKind.OUTPUT, msg['content']['data']['text/plain'], hashid)
                 self.renderer.add_task(cell)
+            elif msg['msg_type'] == 'stream':
+                hashid = self._hashids[msg['parent_header']['msg_id']]
+                assert msg['content']['name'] == 'stdout'
+                cell = Cell(CellKind.OUTPUT, msg['content']['text'].strip(), hashid)
+                self.renderer.add_task(cell)
             pprint(msg)
 
     async def _shell_receiver(self) -> None:
