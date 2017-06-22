@@ -31,5 +31,6 @@ setup(
         'websockets',
         'mypy_extensions',
         'ansi2html',
+        'misaka',
     ],
 )

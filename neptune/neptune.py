@@ -17,6 +17,7 @@ import jupyter_client
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from ansi2html import Ansi2HTMLConverter
+from misaka import Markdown, HtmlRenderer
 
 # ~~~ typing imports ~~~
 from typing import (  # noqa
@@ -47,7 +48,7 @@ class Cell:
     _html_params = {
         Kind.INPUT: ('pre', 'input-cell'),
         Kind.OUTPUT: ('pre', 'output-cell'),
-        Kind.TEXT: ('p', 'text-cell'),
+        Kind.TEXT: ('div', 'text-cell'),
     }
 
     def __init__(self, kind: Kind, content: str, hashid: Hash) -> None:
@@ -55,10 +56,13 @@ class Cell:
         self.content = content
         self.hashid = hashid
 
-    def to_html(self) -> HTML:
+    def to_html(self, conv: Callable[[str], str] = None) -> HTML:
         elem, klass = Cell._html_params[self.kind]
+        content = self.content
+        if self.kind == Cell.Kind.TEXT and conv:
+            content = conv(content)
         return HTML(
-            f'<{elem} id="{self.hashid}" class="{klass}">{self.content}</{elem}>'
+            f'<{elem} id="{self.hashid}" class="{klass}">{content}</{elem}>'
         )
 
 
@@ -130,6 +134,10 @@ class Renderer:
         self.notebooks = notebooks
         self._task_queue: RenderTaskQueue = Queue()
         self._last_render = Render([], {})
+        self._md = Markdown(
+            HtmlRenderer(),
+            extensions='fenced-code math math_explicit tables quote'.split()
+        )
 
     def add_task(self, task: RenderTask) -> None:
         self._task_queue.put_nowait(task)
@@ -155,7 +163,8 @@ class Renderer:
         self._last_render = Render(
             [cell.hashid for cell in document],
             {cell.hashid: (
-                self._last_render.htmls.get(cell.hashid) or cell.to_html()
+                self._last_render.htmls.get(cell.hashid) or
+                cell.to_html(self._md)  # type: ignore
             ) for cell in document}
         )
         return self._render_msg
