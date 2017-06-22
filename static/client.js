@@ -25,11 +25,11 @@ function send(msg) {
 
 window.setInterval(() => { send({ kind: 'ping' }); }, 50000);
 
-const cells = new Map()
-
 function reevaluate(hashid) {
   send({ kind: 'reevaluate', hashid });
 }
+
+const cells = new Map()
 
 ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
@@ -42,10 +42,14 @@ ws.onmessage = ({ data }) => {
     }));
     const orig_cell = document.getElementById(msg.hashid);
     orig_cell.replaceWith(cell);
+    cells[msg.hashid] = cell;
   } else if (msg.kind == 'document') {
     const cells_el = h('div', (div) => { div.id = 'cells'; });
     msg.cells.forEach((hashid) => {
-      cells_el.appendChild(elem_from_html(msg.contents[hashid]));
+      if (!(hashid in cells)) {
+        cells[hashid] = elem_from_html(msg.contents[hashid]);
+      }
+      cells_el.appendChild(cells[hashid]);
     });
     document.getElementById('cells').replaceWith(cells_el);
   }
