@@ -32,5 +32,6 @@ setup(
         'mypy_extensions',
         'ansi2html',
         'misaka',
+        'aiohttp',
     ],
 )

@@ -1,4 +1,4 @@
 *.pyc
 *.egg-info
-/static/node_modules/
+/client/node_modules/
 /.mypy_cache/

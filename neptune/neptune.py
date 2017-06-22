@@ -18,6 +18,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 from ansi2html import Ansi2HTMLConverter
 from misaka import Markdown, HtmlRenderer
+from aiohttp import web
 
 # ~~~ typing imports ~~~
 from typing import (  # noqa
@@ -173,6 +174,12 @@ class Renderer:
         data = Data(json.dumps(self._render_msg))
         nb.queue_msg(data)
 
+    def get_last_html(self) -> HTML:
+        return HTML('\n'.join(
+            self._last_render.htmls[hashid]
+            for hashid in self._last_render.hashids
+        ))
+
     async def run(self) -> None:
         while True:
             task = await self._task_queue.get()
@@ -307,11 +314,39 @@ class Source:
             )
 
 
+class WebServer:
+    def __init__(self, renderer: Renderer) -> None:
+        self.renderer = renderer
+        self._static = {
+            path.name: path.read_text()
+            for path in (Path(__file__).parents[1]/'client/static').glob('*')
+        }
+
+    def _get_response(self, text: str) -> web.Response:
+        return web.Response(text=text, content_type='text/html')
+
+    async def handler(self, request: web.BaseRequest) -> web.Response:
+        if request.path == '/':
+            return self._get_response(self._static['index.html'].replace(
+                '<div id="cells"></div>',
+                f'<div id="cells">\n{self.renderer.get_last_html()}\n</div>',
+            ))
+        path = request.path[1:]
+        if path in self._static:
+            return self._get_response(self._static[path])
+        raise web.HTTPNotFound()
+
+    async def run(self) -> None:
+        server = web.Server(self.handler)
+        await asyncio.get_event_loop().create_server(server, '127.0.0.1', 8080)  # type: ignore
+
+
 async def neptune(path: str) -> None:
     notebooks: Set[Notebook] = set()
     renderer = Renderer(notebooks)
     kernel = Kernel(renderer)
     source = Source(path, kernel, renderer)
+    webserver = WebServer(renderer)
 
     async def handler(ws: WebSocket, path: str) -> None:
         nb = Notebook(ws, kernel)
@@ -325,4 +360,5 @@ async def neptune(path: str) -> None:
         renderer.run(),
         source.run(),
         kernel.run(),
+        webserver.run(),
     )
