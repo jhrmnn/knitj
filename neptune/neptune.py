@@ -170,10 +170,6 @@ class Renderer:
         )
         return self._render_msg
 
-    def render_initial(self, nb: Notebook) -> None:
-        data = Data(json.dumps(self._render_msg))
-        nb.queue_msg(data)
-
     def get_last_html(self) -> HTML:
         return HTML('\n'.join(
             self._last_render.htmls[hashid]
@@ -355,7 +351,6 @@ async def neptune(path: str) -> None:
 
     async def handler(ws: WebSocket, path: str) -> None:
         nb = Notebook(ws, kernel)
-        renderer.render_initial(nb)
         notebooks.add(nb)
         await nb.run()
         notebooks.remove(nb)
