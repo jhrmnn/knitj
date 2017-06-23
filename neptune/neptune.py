@@ -20,7 +20,7 @@ from ansi2html import Ansi2HTMLConverter
 from misaka import Markdown, HtmlRenderer
 from aiohttp import web
 
-from .jupyter_messaging import UUID, MIME, JupMsg, BaseMessage
+from .jupyter_messaging import UUID, MIME, JupMsg, BaseMessage as JupMsgBase
 
 # ~~~ typing imports ~~~
 from typing import (  # noqa
@@ -215,7 +215,7 @@ class Kernel:
             return func(timeout=1)
         return await self._loop.run_in_executor(None, partial)
 
-    def _get_parent(self, msg: BaseMessage) -> Hash:
+    def _get_parent(self, msg: JupMsgBase) -> Hash:
         assert msg.parent_header
         return self._hashids[msg.parent_header.msg_id]
 

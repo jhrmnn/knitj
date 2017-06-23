@@ -212,7 +212,7 @@ class KernelStatMsg(BaseMessage):
         self.content = KernelStatCont(**content)
 
 
-class JupContentClass:
+class _content:
     OK = ActionReplOKCont
     ERROR = ActionReplErrCont
 
@@ -226,28 +226,12 @@ class JupMsgClass:
     EXECUTE_RESULT = ExeResultMsg
     ERROR = ErrorMsg
     STATUS = KernelStatMsg
-    content = JupContentClass()
+    content = _content
 
     @staticmethod
-    def __call__(msg: Dict) -> 'BaseMessage':
+    def __call__(msg: Dict) -> BaseMessage:
         msg_type = MsgType(msg['msg_type'])
-        if msg_type == MsgType.EXECUTE_REQUEST:
-            return ExecuteReqMsg(**msg)
-        if msg_type == MsgType.EXECUTE_REPLY:
-            return ActionReplyMsg(**msg)
-        if msg_type == MsgType.DISPLAY_DATA:
-            return DispDataMsg(**msg)
-        if msg_type == MsgType.STREAM:
-            return StreamMsg(**msg)
-        if msg_type == MsgType.EXECUTE_INPUT:
-            return ExeInpMsg(**msg)
-        if msg_type == MsgType.EXECUTE_RESULT:
-            return ExeResultMsg(**msg)
-        if msg_type == MsgType.ERROR:
-            return ErrorMsg(**msg)
-        if msg_type == MsgType.STATUS:
-            return KernelStatMsg(**msg)
-        assert False
+        return cast(BaseMessage, getattr(JupMsgClass, msg_type.name)(**msg))
 
 
 JupMsg = JupMsgClass()
