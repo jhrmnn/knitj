@@ -8,6 +8,7 @@ import json
 from typing import NamedTuple
 from itertools import cycle
 import hashlib
+import html
 from enum import Enum
 import asyncio
 from asyncio import Queue
@@ -32,6 +33,10 @@ from watchdog.events import FileSystemEvent
 WebSocket = websockets.WebSocketServerProtocol
 # ~~~ end typing ~~~
 
+_md = Markdown(
+    HtmlRenderer(),
+    extensions='fenced-code math math_explicit tables quote'.split()
+)
 
 Hash = NewType('Hash', str)
 Msg = Dict[str, Any]
@@ -52,16 +57,28 @@ class Cell:
         Kind.TEXT: ('div', 'text-cell'),
     }
 
-    def __init__(self, kind: Kind, content: str, hashid: Hash) -> None:
+    def __init__(self, kind: Kind, content: Dict[str, str], hashid: Hash) -> None:
         self.kind = kind
         self.content = content
         self.hashid = hashid
 
-    def to_html(self, conv: Callable[[str], str] = None) -> HTML:
+    def __repr__(self) -> str:
+        return f'<Cell kind={self.kind!r} hashid={self.hashid!r} content={self.content!r}>'
+
+    def to_html(self) -> HTML:
+        if 'image/png' in self.content:
+            content = f'<img src="data:image/png;base64,{self.content["image/png"]}">'
+        elif 'text/html' in self.content:
+            content = self.content['text/html']
+        elif 'text/markdown' in self.content:
+            content = _md(self.content['text/markdown'])
+        elif 'text/plain' in self.content:
+            content = html.escape(self.content['text/plain'])
+        elif 'text/code' in self.content:
+            content = html.escape(self.content['text/code'])
+        else:
+            raise ValueError(f'Unknown content types: {list(self.content)}')
         elem, klass = Cell._html_params[self.kind]
-        content = self.content
-        if self.kind == Cell.Kind.TEXT and conv:
-            content = conv(content)
         return HTML(
             f'<{elem} id="{self.hashid}" class="{klass}">{content}</{elem}>'
         )
@@ -135,10 +152,6 @@ class Renderer:
         self.notebooks = notebooks
         self._task_queue: RenderTaskQueue = Queue()
         self._last_render = Render([], {})
-        self._md = Markdown(
-            HtmlRenderer(),
-            extensions='fenced-code math math_explicit tables quote'.split()
-        )
 
     def add_task(self, task: RenderTask) -> None:
         self._task_queue.put_nowait(task)
@@ -164,8 +177,7 @@ class Renderer:
         self._last_render = Render(
             [cell.hashid for cell in document],
             {cell.hashid: (
-                self._last_render.htmls.get(cell.hashid) or
-                cell.to_html(self._md)  # type: ignore
+                self._last_render.htmls.get(cell.hashid) or cell.to_html()
             ) for cell in document}
         )
         return self._render_msg
@@ -212,17 +224,25 @@ class Kernel:
                 msg = await self._get_msg(self._client.get_iopub_msg)
             except queue.Empty:
                 continue
+            print('IOPUB: ', end='')
+            pprint(msg)
             if msg['msg_type'] == 'execute_result':
                 hashid = self._get_parent(msg)
-                cell = Cell(Cell.Kind.OUTPUT, msg['content']['data']['text/plain'], hashid)
+                cell = Cell(Cell.Kind.OUTPUT, msg['content']['data'], hashid)
                 self.renderer.add_task(cell)
             elif msg['msg_type'] == 'stream':
                 hashid = self._get_parent(msg)
-                assert msg['content']['name'] == 'stdout'
-                cell = Cell(Cell.Kind.OUTPUT, msg['content']['text'].strip(), hashid)
+                assert msg['content']['name'] in ['stdout', 'stderr']
+                cell = Cell(
+                    Cell.Kind.OUTPUT,
+                    {'text/plain': msg['content']['text'].strip()},
+                    hashid
+                )
                 self.renderer.add_task(cell)
-            print('IOPUB: ', end='')
-            pprint(msg)
+            elif msg['msg_type'] == 'display_data':
+                hashid = self._get_parent(msg)
+                cell = Cell(Cell.Kind.OUTPUT, msg['content']['data'], hashid)
+                self.renderer.add_task(cell)
 
     async def _shell_receiver(self) -> None:
         while True:
@@ -230,6 +250,8 @@ class Kernel:
                 msg = await self._get_msg(self._client.get_shell_msg)
             except queue.Empty:
                 continue
+            print('SHELL: ', end='')
+            pprint(msg)
             if msg['msg_type'] == 'execute_reply':
                 hashid = self._get_parent(msg)
                 if msg['content']['status'] == 'ok':
@@ -237,18 +259,16 @@ class Kernel:
                 elif msg['content']['status'] == 'error':
                     cell = Cell(
                         Cell.Kind.OUTPUT,
-                        self._conv.convert(
+                        {'text/plain': self._conv.convert(
                             '\n'.join(msg['content']['traceback']), full=False
-                        ),
+                        )},
                         hashid
                     )
                     self.renderer.add_task(cell)
-            print('SHELL: ', end='')
-            pprint(msg)
 
     def execute(self, cell: Cell) -> None:
         assert cell.kind == Cell.Kind.INPUT
-        msg_id = MsgId(self._client.execute(cell.content))
+        msg_id = MsgId(self._client.execute(cell.content['text/code']))
         self._input_cells[cell.hashid] = cell
         self._hashids[msg_id] = cell.hashid
 
@@ -296,8 +316,11 @@ class Source:
                 else:
                     con = f'```{con}```'
                     kind = Cell.Kind.TEXT
-            con = con.strip()
-            cells.append(Cell(kind, con.strip(), get_hash(con)))
+                con_type = 'text/code'
+            else:
+                con_type = 'text/markdown'
+            con = con.rstrip()
+            cells.append(Cell(kind, {con_type: con}, get_hash(con)))
         return cells
 
     async def run(self) -> None:
