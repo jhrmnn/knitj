@@ -2,7 +2,6 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from pathlib import Path
-from pprint import pprint
 import queue
 import json
 from typing import NamedTuple
@@ -20,6 +19,8 @@ from watchdog.events import FileSystemEventHandler
 from ansi2html import Ansi2HTMLConverter
 from misaka import Markdown, HtmlRenderer
 from aiohttp import web
+
+from .jupyter_messaging import UUID, BaseMessage
 
 # ~~~ typing imports ~~~
 from typing import (  # noqa
@@ -41,7 +42,6 @@ _md = Markdown(
 Hash = NewType('Hash', str)
 Msg = Dict[str, Any]
 Data = NewType('Data', str)
-MsgId = NewType('MsgId', str)
 HTML = NewType('HTML', str)
 
 
@@ -204,7 +204,7 @@ class Kernel:
     def __init__(self, renderer: Renderer) -> None:
         self.renderer = renderer
         self._loop = asyncio.get_event_loop()
-        self._hashids: Dict[MsgId, Hash] = {}
+        self._hashids: Dict[UUID, Hash] = {}
         self._input_cells: Dict[Hash, Cell] = {}
         self._conv = Ansi2HTMLConverter()
 
@@ -224,8 +224,7 @@ class Kernel:
                 msg = await self._get_msg(self._client.get_iopub_msg)
             except queue.Empty:
                 continue
-            print('IOPUB: ', end='')
-            pprint(msg)
+            print('IOPUB:', BaseMessage.from_dict(msg))
             if msg['msg_type'] == 'execute_result':
                 hashid = self._get_parent(msg)
                 cell = Cell(Cell.Kind.OUTPUT, msg['content']['data'], hashid)
@@ -250,8 +249,7 @@ class Kernel:
                 msg = await self._get_msg(self._client.get_shell_msg)
             except queue.Empty:
                 continue
-            print('SHELL: ', end='')
-            pprint(msg)
+            print('SHELL:', BaseMessage.from_dict(msg))
             if msg['msg_type'] == 'execute_reply':
                 hashid = self._get_parent(msg)
                 if msg['content']['status'] == 'ok':
@@ -268,7 +266,7 @@ class Kernel:
 
     def execute(self, cell: Cell) -> None:
         assert cell.kind == Cell.Kind.INPUT
-        msg_id = MsgId(self._client.execute(cell.content['text/code']))
+        msg_id = UUID(self._client.execute(cell.content['text/code']))
         self._input_cells[cell.hashid] = cell
         self._hashids[msg_id] = cell.hashid
 
