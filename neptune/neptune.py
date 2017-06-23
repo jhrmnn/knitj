@@ -20,7 +20,7 @@ from ansi2html import Ansi2HTMLConverter
 from misaka import Markdown, HtmlRenderer
 from aiohttp import web
 
-from .jupyter_messaging import UUID, BaseMessage
+from .jupyter_messaging import UUID, MIME, JupMsg, BaseMessage
 
 # ~~~ typing imports ~~~
 from typing import (  # noqa
@@ -57,7 +57,7 @@ class Cell:
         Kind.TEXT: ('div', 'text-cell'),
     }
 
-    def __init__(self, kind: Kind, content: Dict[str, str], hashid: Hash) -> None:
+    def __init__(self, kind: Kind, content: Dict[MIME, str], hashid: Hash) -> None:
         self.kind = kind
         self.content = content
         self.hashid = hashid
@@ -66,18 +66,18 @@ class Cell:
         return f'<Cell kind={self.kind!r} hashid={self.hashid!r} content={self.content!r}>'
 
     def to_html(self) -> HTML:
-        if 'image/png' in self.content:
-            content = f'<img src="data:image/png;base64,{self.content["image/png"]}">'
-        elif 'text/html' in self.content:
-            content = self.content['text/html']
-        elif 'text/markdown' in self.content:
-            content = _md(self.content['text/markdown'])
-        elif 'text/plain' in self.content:
-            content = html.escape(self.content['text/plain'])
-        elif 'text/code' in self.content:
-            content = html.escape(self.content['text/code'])
+        if MIME.IMAGE_PNG in self.content:
+            content = f'<img src="data:image/png;base64,{self.content[MIME.IMAGE_PNG]}">'
+        elif MIME.TEXT_HTML in self.content:
+            content = self.content[MIME.TEXT_HTML]
+        elif MIME.TEXT_MARKDOWN in self.content:
+            content = _md(self.content[MIME.TEXT_MARKDOWN])
+        elif MIME.TEXT_PLAIN in self.content:
+            content = html.escape(self.content[MIME.TEXT_PLAIN])
+        elif MIME.TEXT_PYTHON in self.content:
+            content = html.escape(self.content[MIME.TEXT_PYTHON])
         else:
-            raise ValueError(f'Unknown content types: {list(self.content)}')
+            raise ValueError(f'Unknown MIME types: {list(self.content)}')
         elem, klass = Cell._html_params[self.kind]
         return HTML(
             f'<{elem} id="{self.hashid}" class="{klass}">{content}</{elem}>'
@@ -215,50 +215,52 @@ class Kernel:
             return func(timeout=1)
         return await self._loop.run_in_executor(None, partial)
 
-    def _get_parent(self, msg: Msg) -> Hash:
-        return self._hashids[msg['parent_header']['msg_id']]
+    def _get_parent(self, msg: BaseMessage) -> Hash:
+        assert msg.parent_header
+        return self._hashids[msg.parent_header.msg_id]
 
     async def _iopub_receiver(self) -> None:
         while True:
             try:
-                msg = await self._get_msg(self._client.get_iopub_msg)
+                dct = await self._get_msg(self._client.get_iopub_msg)
             except queue.Empty:
                 continue
-            print('IOPUB:', BaseMessage.from_dict(msg))
-            if msg['msg_type'] == 'execute_result':
+            msg = JupMsg(dct)
+            print('IOPUB:', msg)
+            if isinstance(msg, JupMsg.EXECUTE_RESULT):
                 hashid = self._get_parent(msg)
-                cell = Cell(Cell.Kind.OUTPUT, msg['content']['data'], hashid)
+                cell = Cell(Cell.Kind.OUTPUT, msg.content.data, hashid)
                 self.renderer.add_task(cell)
-            elif msg['msg_type'] == 'stream':
+            elif isinstance(msg, JupMsg.STREAM):
                 hashid = self._get_parent(msg)
-                assert msg['content']['name'] in ['stdout', 'stderr']
                 cell = Cell(
                     Cell.Kind.OUTPUT,
-                    {'text/plain': msg['content']['text'].strip()},
+                    {MIME.TEXT_PLAIN: msg.content.text.strip()},
                     hashid
                 )
                 self.renderer.add_task(cell)
-            elif msg['msg_type'] == 'display_data':
+            elif isinstance(msg, JupMsg.DISPLAY_DATA):
                 hashid = self._get_parent(msg)
-                cell = Cell(Cell.Kind.OUTPUT, msg['content']['data'], hashid)
+                cell = Cell(Cell.Kind.OUTPUT, msg.content.data, hashid)
                 self.renderer.add_task(cell)
 
     async def _shell_receiver(self) -> None:
         while True:
             try:
-                msg = await self._get_msg(self._client.get_shell_msg)
+                dct = await self._get_msg(self._client.get_shell_msg)
             except queue.Empty:
                 continue
-            print('SHELL:', BaseMessage.from_dict(msg))
-            if msg['msg_type'] == 'execute_reply':
+            msg = JupMsg(dct)
+            print('SHELL:', msg)
+            if isinstance(msg, JupMsg.EXECUTE_REPLY):
                 hashid = self._get_parent(msg)
-                if msg['content']['status'] == 'ok':
+                if isinstance(msg.content, JupMsg.content.OK):
                     pass
-                elif msg['content']['status'] == 'error':
+                if isinstance(msg.content, JupMsg.content.ERROR):
                     cell = Cell(
                         Cell.Kind.OUTPUT,
-                        {'text/plain': self._conv.convert(
-                            '\n'.join(msg['content']['traceback']), full=False
+                        {MIME.TEXT_PLAIN: self._conv.convert(
+                            '\n'.join(msg.content.traceback), full=False
                         )},
                         hashid
                     )
@@ -266,7 +268,7 @@ class Kernel:
 
     def execute(self, cell: Cell) -> None:
         assert cell.kind == Cell.Kind.INPUT
-        msg_id = UUID(self._client.execute(cell.content['text/code']))
+        msg_id = UUID(self._client.execute(cell.content[MIME.TEXT_PYTHON]))
         self._input_cells[cell.hashid] = cell
         self._hashids[msg_id] = cell.hashid
 
@@ -314,11 +316,11 @@ class Source:
                 else:
                     con = f'```{con}```'
                     kind = Cell.Kind.TEXT
-                con_type = 'text/code'
+                mime = MIME.TEXT_PYTHON
             else:
-                con_type = 'text/markdown'
+                mime = MIME.TEXT_MARKDOWN
             con = con.rstrip()
-            cells.append(Cell(kind, {con_type: con}, get_hash(con)))
+            cells.append(Cell(kind, {mime: con}, get_hash(con)))
         return cells
 
     async def run(self) -> None:

@@ -9,7 +9,7 @@ from pprint import pformat
 
 # ~~~ typing imports ~~~
 from typing import (  # noqa
-    NewType, Dict, Any, List
+    NewType, Dict, Any, List, cast
 )
 # ~~~ end typing ~~~
 
@@ -40,6 +40,8 @@ class StreamName(Enum):
 class MIME(Enum):
     TEXT_PLAIN = 'text/plain'
     TEXT_HTML = 'text/html'
+    TEXT_MARKDOWN = 'text/markdown'
+    TEXT_PYTHON = 'text/python'
     IMAGE_PNG = 'image/png'
 
 
@@ -75,7 +77,6 @@ class BaseMessage:
         self.parent_header = Header(**parent_header) if parent_header else None
         self.metadata = metadata
         self.buffers = buffers
-        self.content: BaseContent
         assert msg_id == self.header.msg_id
         assert MsgType(msg_type) == self.header.msg_type
         assert not buffers
@@ -90,27 +91,6 @@ class BaseMessage:
     @property
     def msg_type(self) -> MsgType:
         return self.header.msg_type
-
-    @staticmethod
-    def from_dict(msg: Dict) -> 'BaseMessage':
-        msg_type = MsgType(msg['msg_type'])
-        if msg_type == MsgType.EXECUTE_REQUEST:
-            return ExecuteReqMsg(**msg)
-        if msg_type == MsgType.EXECUTE_REPLY:
-            return ActionReplyMsg(**msg)
-        if msg_type == MsgType.DISPLAY_DATA:
-            return DispDataMsg(**msg)
-        if msg_type == MsgType.STREAM:
-            return StreamMsg(**msg)
-        if msg_type == MsgType.EXECUTE_INPUT:
-            return ExeInpMsg(**msg)
-        if msg_type == MsgType.EXECUTE_RESULT:
-            return ExeResultMsg(**msg)
-        if msg_type == MsgType.ERROR:
-            return ErrorMsg(**msg)
-        if msg_type == MsgType.STATUS:
-            return KernelStatMsg(**msg)
-        assert False
 
 
 class ExecuteReqCont(BaseContent):
@@ -178,7 +158,7 @@ class StreamMsg(BaseMessage):
 
 class DispDataCont(BaseContent):
     def __init__(self, *, data: Dict, metadata: Dict, transient: Dict = None) -> None:
-        self.data = {MIME(k): v for k, v in data.items()}
+        self.data = {MIME(k): cast(str, v) for k, v in data.items()}
         self.metadata = metadata
         self.transient = transient
 
@@ -204,7 +184,7 @@ class ExeInpMsg(BaseMessage):
 class ExeResultCont(BaseContent):
     def __init__(self, *, execution_count: int, data: Dict, metadata: Dict) -> None:
         self.execution_count = execution_count
-        self.data = {MIME(k): v for k, v in data.items()}
+        self.data = {MIME(k): cast(str, v) for k, v in data.items()}
         self.metadata = metadata
 
 
@@ -230,3 +210,44 @@ class KernelStatMsg(BaseMessage):
     def __init__(self, *, content: Dict, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self.content = KernelStatCont(**content)
+
+
+class JupContentClass:
+    OK = ActionReplOKCont
+    ERROR = ActionReplErrCont
+
+
+class JupMsgClass:
+    EXECUTE_REQUEST = ExecuteReqMsg
+    EXECUTE_REPLY = ActionReplyMsg
+    DISPLAY_DATA = DispDataMsg
+    STREAM = StreamMsg
+    EXECUTE_INPUT = ExeInpMsg
+    EXECUTE_RESULT = ExeResultMsg
+    ERROR = ErrorMsg
+    STATUS = KernelStatMsg
+    content = JupContentClass()
+
+    @staticmethod
+    def __call__(msg: Dict) -> 'BaseMessage':
+        msg_type = MsgType(msg['msg_type'])
+        if msg_type == MsgType.EXECUTE_REQUEST:
+            return ExecuteReqMsg(**msg)
+        if msg_type == MsgType.EXECUTE_REPLY:
+            return ActionReplyMsg(**msg)
+        if msg_type == MsgType.DISPLAY_DATA:
+            return DispDataMsg(**msg)
+        if msg_type == MsgType.STREAM:
+            return StreamMsg(**msg)
+        if msg_type == MsgType.EXECUTE_INPUT:
+            return ExeInpMsg(**msg)
+        if msg_type == MsgType.EXECUTE_RESULT:
+            return ExeResultMsg(**msg)
+        if msg_type == MsgType.ERROR:
+            return ErrorMsg(**msg)
+        if msg_type == MsgType.STATUS:
+            return KernelStatMsg(**msg)
+        assert False
+
+
+JupMsg = JupMsgClass()
