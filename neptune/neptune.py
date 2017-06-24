@@ -15,24 +15,22 @@ from asyncio import Queue
 import websockets
 import jupyter_client
 from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from ansi2html import Ansi2HTMLConverter
 from misaka import Markdown, HtmlRenderer
 from aiohttp import web
 
-from .jupyter_messaging import UUID, MIME, JupMsg, BaseMessage as JupMsgBase
+from . import jupyter_messaging as jupy
+from .jupyter_messaging import UUID
+from .jupyter_messaging.content import MIME
 
-# ~~~ typing imports ~~~
 from typing import (  # noqa
     TYPE_CHECKING, Any, NewType, Set, Dict, Awaitable, Callable, List,
     Union
 )
-from mypy_extensions import (  # noqa
-    Arg, DefaultArg, NamedArg, DefaultNamedArg, VarArg, KwArg
-)
-from watchdog.events import FileSystemEvent
+from mypy_extensions import DefaultNamedArg
+
 WebSocket = websockets.WebSocketServerProtocol
-# ~~~ end typing ~~~
 
 _md = Markdown(
     HtmlRenderer(),
@@ -215,7 +213,7 @@ class Kernel:
             return func(timeout=1)
         return await self._loop.run_in_executor(None, partial)
 
-    def _get_parent(self, msg: JupMsgBase) -> Hash:
+    def _get_parent(self, msg: jupy.Message) -> Hash:
         assert msg.parent_header
         return self._hashids[msg.parent_header.msg_id]
 
@@ -225,13 +223,13 @@ class Kernel:
                 dct = await self._get_msg(self._client.get_iopub_msg)
             except queue.Empty:
                 continue
-            msg = JupMsg(dct)
+            msg = jupy.parse(dct)
             print('IOPUB:', msg)
-            if isinstance(msg, JupMsg.EXECUTE_RESULT):
+            if isinstance(msg, jupy.EXECUTE_RESULT):
                 hashid = self._get_parent(msg)
                 cell = Cell(Cell.Kind.OUTPUT, msg.content.data, hashid)
                 self.renderer.add_task(cell)
-            elif isinstance(msg, JupMsg.STREAM):
+            elif isinstance(msg, jupy.STREAM):
                 hashid = self._get_parent(msg)
                 cell = Cell(
                     Cell.Kind.OUTPUT,
@@ -239,7 +237,7 @@ class Kernel:
                     hashid
                 )
                 self.renderer.add_task(cell)
-            elif isinstance(msg, JupMsg.DISPLAY_DATA):
+            elif isinstance(msg, jupy.DISPLAY_DATA):
                 hashid = self._get_parent(msg)
                 cell = Cell(Cell.Kind.OUTPUT, msg.content.data, hashid)
                 self.renderer.add_task(cell)
@@ -250,13 +248,13 @@ class Kernel:
                 dct = await self._get_msg(self._client.get_shell_msg)
             except queue.Empty:
                 continue
-            msg = JupMsg(dct)
+            msg = jupy.parse(dct)
             print('SHELL:', msg)
-            if isinstance(msg, JupMsg.EXECUTE_REPLY):
+            if isinstance(msg, jupy.EXECUTE_REPLY):
                 hashid = self._get_parent(msg)
-                if isinstance(msg.content, JupMsg.content.OK):
+                if isinstance(msg.content, jupy.content.OK):
                     pass
-                if isinstance(msg.content, JupMsg.content.ERROR):
+                if isinstance(msg.content, jupy.content.ERROR):
                     cell = Cell(
                         Cell.Kind.OUTPUT,
                         {MIME.TEXT_PLAIN: self._conv.convert(
