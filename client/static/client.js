@@ -4,15 +4,13 @@
 
 /* eslint-env browser */
 
-function $(query) { return document.querySelector(query); }
-
 function h(tagName, func) {
   const el = document.createElement(tagName);
   func(el);
   return el;
 }
 
-function elem_from_html(html) {
+function elemFromHtml(html) {
   const el = document.createElement('div');
   el.innerHTML = html;
   return el.childNodes[0];
@@ -32,39 +30,31 @@ function reevaluate(hashid) {
 
 function appendReevaluate(cell) {
   cell.appendChild(h('button', (button) => {
-    button.onclick = () => { reevaluate(msg.hashid); };
+    button.onclick = () => { reevaluate(cell.id); };
     button.textContent = 'Reevaluate';
   }));
 }
 
-let last_render = new Map()
-
 ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
-  if (msg.kind == 'cell') {
+  if (msg.kind === 'cell') {
     console.log(msg.content);
-    const cell = elem_from_html(msg.html)
+    const cell = elemFromHtml(msg.html);
     appendReevaluate(cell);
-    const orig_cell = document.getElementById(msg.hashid);
-    orig_cell.replaceWith(cell);
-    last_render[msg.hashid] = cell;
-  } else if (msg.kind == 'document') {
-    const cells_el = h('div', (div) => { div.id = 'cells'; });
-    const new_render = new Map();
+    const origCell = document.getElementById(msg.hashid);
+    origCell.replaceWith(cell);
+  } else if (msg.kind === 'document') {
+    const cellsEl = h('div', (div) => { div.id = 'cells'; });
     msg.hashids.forEach((hashid) => {
-      let cell;
-      if (hashid in last_render) {
-        cell = last_render[hashid];
-      } else {
-        cell = elem_from_html(msg.htmls[hashid]);
-        if (cell.className == 'output-cell') {
+      let cell = document.getElementById(hashid);
+      if (!cell) {
+        cell = elemFromHtml(msg.htmls[hashid]);
+        if (cell.className === 'output-cell') {
           appendReevaluate(cell);
         }
       }
-      cells_el.appendChild(cell);
-      new_render[hashid] = cell;
+      cellsEl.appendChild(cell);
     });
-    document.getElementById('cells').replaceWith(cells_el);
-    last_render = new_render;
+    document.getElementById('cells').replaceWith(cellsEl);
   }
 };
