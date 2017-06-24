@@ -6,6 +6,7 @@ import queue
 import json
 from typing import NamedTuple
 from itertools import cycle
+from pprint import pprint
 import hashlib
 import html
 from enum import Enum
@@ -227,9 +228,12 @@ class Kernel:
         while True:
             try:
                 dct = await self._get_msg(self._client.get_iopub_msg)
+                msg = jupy.parse(dct)
             except queue.Empty:
                 continue
-            msg = jupy.parse(dct)
+            except (TypeError, ValueError):
+                pprint(dct)
+                raise
             print('IOPUB:', msg)
             if isinstance(msg, jupy.EXECUTE_RESULT):
                 hashid = self._get_parent(msg)
@@ -252,18 +256,19 @@ class Kernel:
         while True:
             try:
                 dct = await self._get_msg(self._client.get_shell_msg)
+                msg = jupy.parse(dct)
             except queue.Empty:
                 continue
-            msg = jupy.parse(dct)
+            except (TypeError, ValueError):
+                pprint(dct)
+                raise
             print('SHELL:', msg)
             if isinstance(msg, jupy.EXECUTE_REPLY):
                 hashid = self._get_parent(msg)
-                if isinstance(msg.content, jupy.content.OK):
-                    pass
                 if isinstance(msg.content, jupy.content.ERROR):
                     cell = Cell(
                         Cell.Kind.OUTPUT,
-                        {MIME.TEXT_PLAIN: self._conv.convert(
+                        {MIME.TEXT_HTML: self._conv.convert(
                             '\n'.join(msg.content.traceback), full=False
                         )},
                         hashid

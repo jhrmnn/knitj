@@ -2,12 +2,13 @@
 # http://creativecommons.org/publicdomain/zero/1.0/
 from enum import Enum
 from pprint import pformat
-from typing import Dict, List, cast
+from typing import Dict, List, cast, Any
 
 
 class Status(Enum):
     OK = 'ok'
     ERROR = 'error'
+    ABORTED = 'aborted'
 
 
 class StreamName(Enum):
@@ -60,11 +61,17 @@ class ExecuteReplyOkContent(BaseExecuteReplyContent):
 
 
 class ExecuteReplyErrorContent(BaseExecuteReplyContent):
-    def __init__(self, *, status: str, ename: str, evalue: str, traceback: List[str]) -> None:
+    def __init__(self, *, status: str, ename: str, evalue: str, traceback: List[str],
+                 **kwargs: Any) -> None:
         self.status = Status(status)
         self.ename = ename
         self.evalue = evalue
         self.traceback = traceback
+
+
+class ExecuteReplyAbortedContent(BaseExecuteReplyContent):
+    def __init__(self, *, status: str) -> None:
+        self.status = Status(status)
 
 
 def parse_execute_reply(content: Dict) -> BaseExecuteReplyContent:
@@ -73,6 +80,8 @@ def parse_execute_reply(content: Dict) -> BaseExecuteReplyContent:
         return ExecuteReplyOkContent(**content)
     if status == Status.ERROR:
         return ExecuteReplyErrorContent(**content)
+    if status == Status.ABORTED:
+        return ExecuteReplyAbortedContent(**content)
     assert False
 
 
