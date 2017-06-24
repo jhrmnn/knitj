@@ -16,12 +16,13 @@ import websockets
 import jupyter_client
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
-from ansi2html import Ansi2HTMLConverter
+import ansi2html
 from misaka import Markdown, HtmlRenderer
 from aiohttp import web
 import pygments
 from pygments.formatters import HtmlFormatter
 from pygments.lexers import PythonLexer
+from jinja2 import Template
 
 from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
@@ -209,7 +210,7 @@ class Kernel:
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[UUID, Hash] = {}
         self._input_cells: Dict[Hash, Cell] = {}
-        self._conv = Ansi2HTMLConverter()
+        self._conv = ansi2html.Ansi2HTMLConverter()
 
     async def _get_msg(self,
                        func: Callable[[DefaultNamedArg(int, 'timeout')], Msg],
@@ -348,16 +349,23 @@ class WebServer:
             path.name: path.read_text()
             for path in (Path(__file__).parents[1]/'client/static').glob('*')
         }
+        self._templates = {
+            path.name: Template(path.read_text())
+            for path in (Path(__file__).parents[1]/'client/templates').glob('*')
+        }
 
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
 
     async def handler(self, request: web.BaseRequest) -> web.Response:
         if request.path == '/':
-            return self._get_response(self._static['index.html'].replace(
-                '<div id="cells"></div>',
-                f'<div id="cells">\n{self.renderer.get_last_html()}\n</div>',
-            ).replace('__PYGMENT_STYLES__', HtmlFormatter().get_style_defs()))
+            return self._get_response(self._templates['index.html'].render(
+                cells=self.renderer.get_last_html(),
+                styles=(
+                    HtmlFormatter().get_style_defs() + '\n' +
+                    '\n'.join(str(rule) for rule in ansi2html.style.get_styles())
+                )
+            ))
         path = request.path[1:]
         if path in self._static:
             return self._get_response(self._static[path])

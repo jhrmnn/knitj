@@ -1,0 +1,6 @@
+from typing import List
+
+
+class Rule: ...
+
+def get_styles() -> List[Rule]: ...

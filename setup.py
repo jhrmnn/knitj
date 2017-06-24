@@ -34,5 +34,6 @@ setup(
         'misaka',
         'aiohttp',
         'pygments',
+        'Jinja2',
     ],
 )
