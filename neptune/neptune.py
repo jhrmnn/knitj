@@ -19,6 +19,9 @@ from watchdog.events import FileSystemEventHandler, FileSystemEvent
 from ansi2html import Ansi2HTMLConverter
 from misaka import Markdown, HtmlRenderer
 from aiohttp import web
+import pygments
+from pygments.formatters import HtmlFormatter
+from pygments.lexers import PythonLexer
 
 from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
@@ -50,7 +53,7 @@ class Cell:
         OUTPUT = 2
 
     _html_params = {
-        Kind.INPUT: ('pre', 'input-cell'),
+        Kind.INPUT: ('div', 'input-cell'),
         Kind.OUTPUT: ('pre', 'output-cell'),
         Kind.TEXT: ('div', 'text-cell'),
     }
@@ -73,7 +76,9 @@ class Cell:
         elif MIME.TEXT_PLAIN in self.content:
             content = html.escape(self.content[MIME.TEXT_PLAIN])
         elif MIME.TEXT_PYTHON in self.content:
-            content = html.escape(self.content[MIME.TEXT_PYTHON])
+            content = pygments.highlight(
+                self.content[MIME.TEXT_PYTHON], PythonLexer(), HtmlFormatter()
+            )
         else:
             raise ValueError(f'Unknown MIME types: {list(self.content)}')
         elem, klass = Cell._html_params[self.kind]
@@ -352,7 +357,7 @@ class WebServer:
             return self._get_response(self._static['index.html'].replace(
                 '<div id="cells"></div>',
                 f'<div id="cells">\n{self.renderer.get_last_html()}\n</div>',
-            ))
+            ).replace('__PYGMENT_STYLES__', HtmlFormatter().get_style_defs()))
         path = request.path[1:]
         if path in self._static:
             return self._get_response(self._static[path])

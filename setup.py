@@ -33,5 +33,6 @@ setup(
         'ansi2html',
         'misaka',
         'aiohttp',
+        'pygments',
     ],
 )
