@@ -355,31 +355,27 @@ class Source:
 class WebServer:
     def __init__(self, renderer: Renderer) -> None:
         self.renderer = renderer
-        self._static = {
-            path.name: path.read_text()
-            for path in (Path(__file__).parents[1]/'client/static').glob('*')
-        }
-        self._templates = {
-            path.name: Template(path.read_text())
-            for path in (Path(__file__).parents[1]/'client/templates').glob('*')
-        }
+        self._root = Path(__file__).parents[1]/'client'
 
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
 
     async def handler(self, request: web.BaseRequest) -> web.Response:
         if request.path == '/':
-            return self._get_response(self._templates['index.html'].render(
-                cells=self.renderer.get_last_html(),
-                styles=(
-                    HtmlFormatter().get_style_defs() + '\n' +
-                    '\n'.join(str(rule) for rule in ansi2html.style.get_styles())
+            return self._get_response(
+                Template((self._root/'templates/index.html').read_text()).render(
+                    cells=self.renderer.get_last_html(),
+                    styles=(
+                        HtmlFormatter().get_style_defs() + '\n' +
+                        '\n'.join(str(rule) for rule in ansi2html.style.get_styles())
+                    )
                 )
-            ))
-        path = request.path[1:]
-        if path in self._static:
-            return self._get_response(self._static[path])
-        raise web.HTTPNotFound()
+            )
+        try:
+            text = (self._root/'static'/request.path[1:]).read_text()
+        except FileNotFoundError:
+            raise web.HTTPNotFound()
+        return self._get_response(text)
 
     async def run(self) -> None:
         server = web.Server(self.handler)
