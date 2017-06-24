@@ -33,7 +33,6 @@ from typing import (  # noqa
     TYPE_CHECKING, Any, NewType, Set, Dict, Awaitable, Callable, List,
     Union
 )
-from mypy_extensions import DefaultNamedArg
 
 WebSocket = websockets.WebSocketServerProtocol
 
@@ -100,10 +99,12 @@ if TYPE_CHECKING:
     FileModifiedQueue = Queue[str]
     RenderTaskQueue = Queue[RenderTask]
     DataQueue = Queue[Data]
+    MsgQueue = Queue[Dict]
 else:
     FileModifiedQueue = None
     RenderTaskQueue = None
     DataQueue = None
+    MsgQueue = None
 
 
 class FileChangedHandler(FileSystemEventHandler):
@@ -212,29 +213,41 @@ class Kernel:
         self._hashids: Dict[UUID, Hash] = {}
         self._input_cells: Dict[Hash, Cell] = {}
         self._conv = ansi2html.Ansi2HTMLConverter()
+        self._msg_queue: MsgQueue = Queue()
 
-    async def _get_msg(self,
-                       func: Callable[[DefaultNamedArg(int, 'timeout')], Msg],
-                       ) -> Msg:
-        def partial() -> Msg:
-            return func(timeout=1)
-        return await self._loop.run_in_executor(None, partial)
+    async def _iopub_receiver(self) -> None:
+        def partial() -> Dict:
+            return self._client.get_iopub_msg(timeout=1)  # type: ignore
+        while True:
+            try:
+                dct = await self._loop.run_in_executor(None, partial)
+            except queue.Empty:
+                continue
+            self._msg_queue.put_nowait(dct)
+
+    async def _shell_receiver(self) -> None:
+        def partial() -> Dict:
+            return self._client.get_shell_msg(timeout=1)  # type: ignore
+        while True:
+            try:
+                dct = await self._loop.run_in_executor(None, partial)
+            except queue.Empty:
+                continue
+            self._msg_queue.put_nowait(dct)
 
     def _get_parent(self, msg: jupy.Message) -> Hash:
         assert msg.parent_header
         return self._hashids[msg.parent_header.msg_id]
 
-    async def _iopub_receiver(self) -> None:
+    async def _msg_handler(self) -> None:
         while True:
+            dct = await self._msg_queue.get()
             try:
-                dct = await self._get_msg(self._client.get_iopub_msg)
                 msg = jupy.parse(dct)
-            except queue.Empty:
-                continue
             except (TypeError, ValueError):
                 pprint(dct)
                 raise
-            print('IOPUB:', msg)
+            print(msg)
             if isinstance(msg, jupy.EXECUTE_RESULT):
                 hashid = self._get_parent(msg)
                 cell = Cell(Cell.Kind.OUTPUT, msg.content.data, hashid)
@@ -251,19 +264,7 @@ class Kernel:
                 hashid = self._get_parent(msg)
                 cell = Cell(Cell.Kind.OUTPUT, msg.content.data, hashid)
                 self.renderer.add_task(cell)
-
-    async def _shell_receiver(self) -> None:
-        while True:
-            try:
-                dct = await self._get_msg(self._client.get_shell_msg)
-                msg = jupy.parse(dct)
-            except queue.Empty:
-                continue
-            except (TypeError, ValueError):
-                pprint(dct)
-                raise
-            print('SHELL:', msg)
-            if isinstance(msg, jupy.EXECUTE_REPLY):
+            elif isinstance(msg, jupy.EXECUTE_REPLY):
                 hashid = self._get_parent(msg)
                 if isinstance(msg.content, jupy.content.ERROR):
                     cell = Cell(
@@ -289,7 +290,11 @@ class Kernel:
         try:
             kernel.start_kernel()
             self._client = kernel.client()
-            await asyncio.gather(self._iopub_receiver(), self._shell_receiver())
+            await asyncio.gather(
+                self._msg_handler(),
+                self._iopub_receiver(),
+                self._shell_receiver()
+            )
         finally:
             self._client.shutdown()
 
