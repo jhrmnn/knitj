@@ -5,7 +5,7 @@ from pathlib import Path
 import queue
 import json
 from typing import NamedTuple
-from itertools import cycle
+from itertools import cycle, chain
 from pprint import pprint
 import hashlib
 import html
@@ -365,10 +365,10 @@ class WebServer:
             return self._get_response(
                 Template((self._root/'templates/index.html').read_text()).render(
                     cells=self.renderer.get_last_html(),
-                    styles=(
-                        HtmlFormatter().get_style_defs() + '\n' +
-                        '\n'.join(str(rule) for rule in ansi2html.style.get_styles())
-                    )
+                    styles='\n'.join(chain(
+                        [HtmlFormatter().get_style_defs()],
+                        map(str, ansi2html.style.get_styles())
+                    ))
                 )
             )
         try:
@@ -379,7 +379,8 @@ class WebServer:
 
     async def run(self) -> None:
         server = web.Server(self.handler)
-        await asyncio.get_event_loop().create_server(server, '127.0.0.1', 8080)  # type: ignore
+        loop = asyncio.get_event_loop()
+        await loop.create_server(server, '127.0.0.1', 8080)  # type: ignore
 
 
 async def neptune(path: str) -> None:
