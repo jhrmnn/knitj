@@ -48,7 +48,7 @@ class BaseMessage:
         assert not buffers
 
     def __repr__(self) -> str:
-        return pformat(vars(self))
+        return f'{self.msg_type.name}: {pformat(vars(self))}'
 
     @property
     def msg_id(self) -> UUID:

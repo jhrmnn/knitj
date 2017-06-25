@@ -1,7 +1,6 @@
 # Any copyright is dedicated to the Public Domain.
 # http://creativecommons.org/publicdomain/zero/1.0/
 from enum import Enum
-from pprint import pformat
 from typing import Dict, List, cast, Any
 
 
@@ -32,7 +31,15 @@ class ExecutionState(Enum):
 
 class BaseContent:
     def __repr__(self) -> str:
-        return pformat(vars(self))
+        dct = vars(self).copy()
+        if 'data' in dct:
+            dct['data'] = {
+                mime: data if len(data) <= 10 else f'{data[:7]}...'
+                for mime, data in dct['data'].items()
+            }
+        if len(dct.get('code', '')) > 20:
+            dct['code'] = f'{dct["code"][:17]}...'
+        return repr(dct)
 
 
 class ExecuteRequestContent(BaseContent):
