@@ -39,14 +39,14 @@ class Source:
         self.path = Path(path)
         self.kernel = kernel
         self.renderer = renderer
-        self._queue: 'Queue[str]' = Queue()
+        self._file_change: 'Queue[str]' = Queue()
         self._observer = Observer()
-        self._observer.schedule(FileChangedHandler(queue=self._queue), '.')
+        self._observer.schedule(FileChangedHandler(queue=self._file_change), '.')
         self._last_inputs: Set[Hash] = set()
 
     async def file_change(self) -> str:
         while True:
-            file = Path(await self._queue.get())
+            file = Path(await self._file_change.get())
             if file == self.path:
                 return file.read_text()
 
