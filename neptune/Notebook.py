@@ -8,7 +8,7 @@ import json
 
 from typing import NewType, TYPE_CHECKING
 if TYPE_CHECKING:
-    from .neptune import Kernel  # noqa
+    from .Kernel import Kernel  # noqa
 
 WebSocket = websockets.WebSocketServerProtocol
 
