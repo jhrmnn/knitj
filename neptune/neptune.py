@@ -24,6 +24,7 @@ from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
 from .jupyter_messaging.content import MIME
 from .Cell import Cell, HTML, Hash
+from .Notebook import Notebook, Data
 
 from typing import (  # noqa
     TYPE_CHECKING, Any, NewType, Set, Dict, Awaitable, Callable, List,
@@ -33,7 +34,6 @@ from typing import (  # noqa
 WebSocket = websockets.WebSocketServerProtocol
 
 Msg = Dict[str, Any]
-Data = NewType('Data', str)
 
 
 class Render(NamedTuple):
@@ -46,12 +46,10 @@ RenderTask = Union[Cell, Document]
 if TYPE_CHECKING:
     FileModifiedQueue = Queue[str]
     RenderTaskQueue = Queue[RenderTask]
-    DataQueue = Queue[Data]
     MsgQueue = Queue[Dict]
 else:
     FileModifiedQueue = None
     RenderTaskQueue = None
-    DataQueue = None
     MsgQueue = None
 
 
@@ -69,36 +67,6 @@ class FileChangedHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent) -> None:
         self._queue_modified(event)
-
-
-class Notebook:
-    def __init__(self, ws: WebSocket, kernel: 'Kernel') -> None:
-        print('Got client:', ws)
-        self.ws = ws
-        self.kernel = kernel
-        self._msg_queue: DataQueue = Queue()
-
-    async def _sender(self) -> None:
-        while True:
-            msg = await self._msg_queue.get()
-            await self.ws.send(msg)
-
-    async def _receiver(self) -> None:
-        while True:
-            data = await self.ws.recv()
-            msg = json.loads(data)
-            if msg['kind'] == 'reevaluate':
-                self.kernel.execute_hashid(msg['hashid'])
-            print(self.ws, data)
-
-    def queue_msg(self, msg: Data) -> None:
-        self._msg_queue.put_nowait(msg)
-
-    async def run(self) -> None:
-        try:
-            await asyncio.gather(self._sender(), self._receiver())
-        except websockets.ConnectionClosed as e:
-            print('Notebook disconnected:', self.ws)
 
 
 class Renderer:
