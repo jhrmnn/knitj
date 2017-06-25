@@ -3,19 +3,19 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from pathlib import Path
 from itertools import cycle
-import hashlib
 import asyncio
 from asyncio import Queue
 
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
-from .Cell import Cell, Hash
+from .Cell import Cell, get_hash
 from .Renderer import Renderer, Document
 from .Kernel import Kernel
 from .jupyter_messaging.content import MIME
 
 from typing import Set  # noqa
+from .Cell import Hash  # noqa
 
 
 class FileChangedHandler(FileSystemEventHandler):
@@ -32,10 +32,6 @@ class FileChangedHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent) -> None:
         self._queue_modified(event)
-
-
-def get_hash(s: str) -> Hash:
-    return Hash(hashlib.sha1(s.encode()).hexdigest())
 
 
 class Source:

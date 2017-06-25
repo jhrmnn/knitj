@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from enum import Enum
+import hashlib
 import html
 
 from misaka import Markdown, HtmlRenderer
@@ -20,6 +21,10 @@ _md = Markdown(
     HtmlRenderer(),
     extensions='fenced-code math math_explicit tables quote'.split()
 )
+
+
+def get_hash(s: str) -> Hash:
+    return Hash(hashlib.sha1(s.encode()).hexdigest())
 
 
 class Cell:
