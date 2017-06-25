@@ -3,8 +3,6 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from pathlib import Path
 import queue
-import json
-from typing import NamedTuple
 from itertools import cycle, chain
 from pprint import pprint
 import hashlib
@@ -23,8 +21,9 @@ from jinja2 import Template
 from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
 from .jupyter_messaging.content import MIME
-from .Cell import Cell, HTML, Hash
-from .Notebook import Notebook, Data
+from .Cell import Cell, Hash
+from .Notebook import Notebook
+from .Renderer import Renderer, Document
 
 from typing import (  # noqa
     TYPE_CHECKING, Any, NewType, Set, Dict, Awaitable, Callable, List,
@@ -33,23 +32,12 @@ from typing import (  # noqa
 
 WebSocket = websockets.WebSocketServerProtocol
 
-Msg = Dict[str, Any]
 
-
-class Render(NamedTuple):
-    hashids: List[Hash]
-    htmls: Dict[Hash, HTML]
-
-
-Document = List[Cell]
-RenderTask = Union[Cell, Document]
 if TYPE_CHECKING:
     FileModifiedQueue = Queue[str]
-    RenderTaskQueue = Queue[RenderTask]
     MsgQueue = Queue[Dict]
 else:
     FileModifiedQueue = None
-    RenderTaskQueue = None
     MsgQueue = None
 
 
@@ -67,59 +55,6 @@ class FileChangedHandler(FileSystemEventHandler):
 
     def on_created(self, event: FileSystemEvent) -> None:
         self._queue_modified(event)
-
-
-class Renderer:
-    def __init__(self, notebooks: Set[Notebook]) -> None:
-        self.notebooks = notebooks
-        self._task_queue: RenderTaskQueue = Queue()
-        self._last_render = Render([], {})
-
-    def add_task(self, task: RenderTask) -> None:
-        self._task_queue.put_nowait(task)
-
-    def _render_cell(self, cell: Cell) -> Msg:
-        html = cell.to_html()
-        self._last_render.htmls[cell.hashid] = html
-        return dict(
-            kind='cell',
-            hashid=cell.hashid,
-            html=html,
-        )
-
-    @property
-    def _render_msg(self) -> Msg:
-        return dict(
-            kind='document',
-            hashids=self._last_render.hashids,
-            htmls=self._last_render.htmls,
-        )
-
-    def _render_document(self, document: Document) -> Msg:
-        self._last_render = Render(
-            [cell.hashid for cell in document],
-            {cell.hashid: (
-                self._last_render.htmls.get(cell.hashid) or cell.to_html()
-            ) for cell in document}
-        )
-        return self._render_msg
-
-    def get_last_html(self) -> HTML:
-        return HTML('\n'.join(
-            self._last_render.htmls[hashid]
-            for hashid in self._last_render.hashids
-        ))
-
-    async def run(self) -> None:
-        while True:
-            task = await self._task_queue.get()
-            if isinstance(task, Cell):
-                msg = self._render_cell(task)
-            elif isinstance(task, list):
-                msg = self._render_document(task)
-            data = Data(json.dumps(msg))
-            for nb in self.notebooks:
-                nb.queue_msg(data)
 
 
 class Kernel:
