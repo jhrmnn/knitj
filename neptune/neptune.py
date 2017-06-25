@@ -8,8 +8,6 @@ from typing import NamedTuple
 from itertools import cycle, chain
 from pprint import pprint
 import hashlib
-import html
-from enum import Enum
 import asyncio
 from asyncio import Queue
 
@@ -18,16 +16,14 @@ import jupyter_client
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 import ansi2html
-from misaka import Markdown, HtmlRenderer
 from aiohttp import web
-import pygments
 from pygments.formatters import HtmlFormatter
-from pygments.lexers import PythonLexer
 from jinja2 import Template
 
 from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
 from .jupyter_messaging.content import MIME
+from .Cell import Cell, HTML, Hash
 
 from typing import (  # noqa
     TYPE_CHECKING, Any, NewType, Set, Dict, Awaitable, Callable, List,
@@ -36,56 +32,8 @@ from typing import (  # noqa
 
 WebSocket = websockets.WebSocketServerProtocol
 
-_md = Markdown(
-    HtmlRenderer(),
-    extensions='fenced-code math math_explicit tables quote'.split()
-)
-
-Hash = NewType('Hash', str)
 Msg = Dict[str, Any]
 Data = NewType('Data', str)
-HTML = NewType('HTML', str)
-
-
-class Cell:
-    class Kind(Enum):
-        TEXT = 0
-        INPUT = 1
-        OUTPUT = 2
-
-    _html_params = {
-        Kind.INPUT: ('div', 'input-cell'),
-        Kind.OUTPUT: ('pre', 'output-cell'),
-        Kind.TEXT: ('div', 'text-cell'),
-    }
-
-    def __init__(self, kind: Kind, content: Dict[MIME, str], hashid: Hash) -> None:
-        self.kind = kind
-        self.content = content
-        self.hashid = hashid
-
-    def __repr__(self) -> str:
-        return f'<Cell kind={self.kind!r} hashid={self.hashid!r} content={self.content!r}>'
-
-    def to_html(self) -> HTML:
-        if MIME.IMAGE_PNG in self.content:
-            content = f'<img src="data:image/png;base64,{self.content[MIME.IMAGE_PNG]}">'
-        elif MIME.TEXT_HTML in self.content:
-            content = self.content[MIME.TEXT_HTML]
-        elif MIME.TEXT_MARKDOWN in self.content:
-            content = _md(self.content[MIME.TEXT_MARKDOWN])
-        elif MIME.TEXT_PLAIN in self.content:
-            content = html.escape(self.content[MIME.TEXT_PLAIN])
-        elif MIME.TEXT_PYTHON in self.content:
-            content = pygments.highlight(
-                self.content[MIME.TEXT_PYTHON], PythonLexer(), HtmlFormatter()
-            )
-        else:
-            raise ValueError(f'Unknown MIME types: {list(self.content)}')
-        elem, klass = Cell._html_params[self.kind]
-        return HTML(
-            f'<{elem} id="{self.hashid}" class="{klass}">{content}</{elem}>'
-        )
 
 
 class Render(NamedTuple):
