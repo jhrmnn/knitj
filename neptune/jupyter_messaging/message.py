@@ -7,6 +7,7 @@ from pprint import pformat
 from typing import NewType, Dict, Any, List
 
 from .content import content as cnt
+from ..logging import colstr
 
 UUID = NewType('UUID', str)
 
@@ -20,6 +21,21 @@ class MsgType(Enum):
     EXECUTE_RESULT = 'execute_result'
     ERROR = 'error'
     STATUS = 'status'
+
+    def __str__(self) -> str:
+        return colstr(self.name, _msg_colors[self])
+
+
+_msg_colors = {
+    MsgType.EXECUTE_REQUEST: 'bryellow',
+    MsgType.EXECUTE_REPLY: 'yellow',
+    MsgType.DISPLAY_DATA: 'blue',
+    MsgType.STREAM: 'pink',
+    MsgType.EXECUTE_INPUT: 'red',
+    MsgType.EXECUTE_RESULT: 'cyan',
+    MsgType.ERROR: 'normal',
+    MsgType.STATUS: 'green',
+}
 
 
 class Header:
@@ -48,7 +64,7 @@ class BaseMessage:
         assert not buffers
 
     def __repr__(self) -> str:
-        return f'{self.msg_type.name}: {pformat(vars(self))}'
+        return f'{self.msg_type!s}: {pformat(vars(self))}'
 
     @property
     def msg_id(self) -> UUID:
