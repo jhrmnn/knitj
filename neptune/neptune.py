@@ -25,28 +25,25 @@ _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
 class Neptune:
     def __init__(self, path: str) -> None:
+        self.path = path
         self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
-        self._source = Source(self._source_handler, path)
-        self._webserver = WebServer(self._get_html)
         self._cell_order: List[Hash] = []
         self._cells: Dict[Hash, BaseCell] = {}
 
-    async def _nb_receiver(self, notebook: Notebook) -> None:
-        while True:
-            msg = await notebook.get_msg()
-            if msg['kind'] == 'reevaluate':
-                hashid = msg['hashid']
-                cell = self._cells[hashid]
-                assert isinstance(cell, CodeCell)
-                self._kernel.execute(hashid, cell.code)
+    def _nb_msg_handler(self, msg: Dict) -> None:
+        if msg['kind'] == 'reevaluate':
+            hashid = msg['hashid']
+            cell = self._cells[hashid]
+            assert isinstance(cell, CodeCell)
+            self._kernel.execute(hashid, cell.code)
 
     async def _nb_handler(self, ws: WebSocket, path: str) -> None:
         print('Got client:', ws)
-        nb = Notebook(ws)
+        nb = Notebook(ws, self._nb_msg_handler)
         self._notebooks.add(nb)
         try:
-            await asyncio.gather(nb.run(), self._nb_receiver(nb))
+            await nb.run()
         except websockets.ConnectionClosed as e:
             print('Notebook disconnected:', ws)
         self._notebooks.remove(nb)
@@ -108,8 +105,8 @@ class Neptune:
 
     async def run(self) -> None:
         await asyncio.gather(
-            websockets.serve(self._nb_handler, 'localhost', 6060),
-            self._source.run(),
             self._kernel.run(),
-            self._webserver.run(),
+            websockets.serve(self._nb_handler, 'localhost', 6060),
+            Source(self._source_handler, self.path).run(),
+            WebServer(self._get_html).run(),
         )
