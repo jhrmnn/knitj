@@ -5,7 +5,7 @@
 from argparse import ArgumentParser
 import asyncio
 
-from neptune import neptune
+from neptune import Neptune
 
 
 def parse_cli() -> dict:
@@ -16,7 +16,7 @@ def parse_cli() -> dict:
 
 
 if __name__ == '__main__':
-    task = asyncio.ensure_future(neptune(**parse_cli()))
+    task = asyncio.ensure_future(Neptune(**parse_cli()).run())
     try:
         asyncio.get_event_loop().run_until_complete(task)
     except KeyboardInterrupt:

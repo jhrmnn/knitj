@@ -1,9 +1,9 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-from enum import Enum
 import hashlib
 import html
+from abc import ABCMeta, abstractmethod
 
 from misaka import Markdown, HtmlRenderer
 import pygments
@@ -12,10 +12,9 @@ from pygments.lexers import PythonLexer
 
 from .jupyter_messaging.content import MIME
 
-from typing import Dict, NewType
+from typing import Dict, NewType, Optional  # noqa
 
 Hash = NewType('Hash', str)
-HTML = NewType('HTML', str)
 
 _md = Markdown(
     HtmlRenderer(),
@@ -23,46 +22,74 @@ _md = Markdown(
 )
 
 
-def get_hash(s: str) -> Hash:
+def _get_hash(s: str) -> Hash:
     return Hash(hashlib.sha1(s.encode()).hexdigest())
 
 
-class Cell:
-    class Kind(Enum):
-        TEXT = 0
-        INPUT = 1
-        OUTPUT = 2
+class BaseCell(metaclass=ABCMeta):
+    def __init__(self) -> None:
+        self._html: Optional[str] = None
+        self.hashid: Hash
 
-    _html_params = {
-        Kind.INPUT: ('div', 'input-cell'),
-        Kind.OUTPUT: ('pre', 'output-cell'),
-        Kind.TEXT: ('div', 'text-cell'),
-    }
+    @property
+    def html(self) -> str:
+        if self._html is None:
+            self._html = self._to_html()
+        return self._html
 
-    def __init__(self, kind: Kind, content: Dict[MIME, str], hashid: Hash) -> None:
-        self.kind = kind
+    @abstractmethod
+    def _to_html(self) -> str:
+        ...
+
+
+class TextCell(BaseCell):
+    def __init__(self, content: str) -> None:
+        super().__init__()
         self.content = content
-        self.hashid = hashid
+        self.hashid = Hash(_get_hash(content) + '-text')
 
     def __repr__(self) -> str:
-        return f'<Cell kind={self.kind!r} hashid={self.hashid!r} content={self.content!r}>'
+        return f'<TextCell hashid={self.hashid!r} content={self.content!r}>'
 
-    def to_html(self) -> HTML:
-        if MIME.IMAGE_PNG in self.content:
-            content = f'<img src="data:image/png;base64,{self.content[MIME.IMAGE_PNG]}">'
-        elif MIME.TEXT_HTML in self.content:
-            content = self.content[MIME.TEXT_HTML]
-        elif MIME.TEXT_MARKDOWN in self.content:
-            content = _md(self.content[MIME.TEXT_MARKDOWN])
-        elif MIME.TEXT_PLAIN in self.content:
-            content = html.escape(self.content[MIME.TEXT_PLAIN])
-        elif MIME.TEXT_PYTHON in self.content:
-            content = pygments.highlight(
-                self.content[MIME.TEXT_PYTHON], PythonLexer(), HtmlFormatter()
-            )
-        else:
-            raise ValueError(f'Unknown MIME types: {list(self.content)}')
-        elem, klass = Cell._html_params[self.kind]
-        return HTML(
-            f'<{elem} id="{self.hashid}" class="{klass}">{content}</{elem}>'
+    def _to_html(self) -> str:
+        return f'<div id="{self.hashid}" class="text-cell">{_md(self.content)}</div>'
+
+
+class CodeCell(BaseCell):
+    def __init__(self, code: str) -> None:
+        super().__init__()
+        self.code = code
+        self._output: Optional[Dict[MIME, str]] = None
+        self._stream = ''
+        self.hashid = Hash(_get_hash(code) + '-code')
+
+    def __repr__(self) -> str:
+        return (
+            f'<CodeCell hashid={self.hashid!r} code={self.code!r} '
+            f'output={self._output!r}>'
         )
+
+    def append_stream(self, s: str) -> None:
+        self._stream += s
+        self._html = None
+
+    def set_output(self, output: Dict[MIME, str]) -> None:
+        self._output = output
+        self._html = None
+
+    def _to_html(self) -> str:
+        code = pygments.highlight(self.code, PythonLexer(), HtmlFormatter())
+        if self._output is None:
+            output = ''
+        elif MIME.IMAGE_PNG in self._output:
+            output = f'<img src="data:image/png;base64,{self._output[MIME.IMAGE_PNG]}">'
+        elif MIME.TEXT_HTML in self._output:
+            output = self._output[MIME.TEXT_HTML]
+        elif MIME.TEXT_PLAIN in self._output:
+            output = f'<pre>{html.escape(self._output[MIME.TEXT_PLAIN])}</pre>'
+        else:
+            assert False
+        if self._stream:
+            output = f'<pre>{self._stream}</pre>{output}'
+        content = f'<div class="code">{code}</div><div class="output">{output}</div>'
+        return f'<div id="{self.hashid}" class="code-cell">{content}</div>'

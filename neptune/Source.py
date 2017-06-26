@@ -8,12 +8,7 @@ from asyncio import Queue
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
-from .Cell import Cell
-from .Renderer import Renderer
-from .Kernel import Kernel
-from .Parser import Parser
-
-from typing import Set  # noqa
+from typing import Set, AsyncIterable  # noqa
 from .Cell import Hash  # noqa
 
 
@@ -33,32 +28,19 @@ class FileChangedHandler(FileSystemEventHandler):
         self._queue_modified(event)
 
 
-class Source:
-    def __init__(self, path: str, kernel: Kernel, renderer: Renderer) -> None:
+class Source(AsyncIterable[str]):
+    def __init__(self, path: str) -> None:
         self.path = Path(path)
-        self.kernel = kernel
-        self.renderer = renderer
         self._file_change: 'Queue[str]' = Queue()
         self._observer = Observer()
         self._observer.schedule(FileChangedHandler(queue=self._file_change), '.')
-        self._last_inputs: Set[Hash] = set()
 
-    async def file_change(self) -> str:
+    def __aiter__(self) -> 'Source':
+        self._observer.start()
+        return self
+
+    async def __anext__(self) -> str:
         while True:
             file = Path(await self._file_change.get())
             if file == self.path:
                 return file.read_text()
-
-    async def run(self) -> None:
-        self._observer.start()
-        while True:
-            src = await self.file_change()
-            document = Parser().parse(src)
-            self.renderer.add_task(document)
-            for cell in document:
-                if cell.kind == Cell.Kind.INPUT:
-                    if cell.hashid not in self._last_inputs:
-                        self.kernel.execute(cell)
-            self._last_inputs = set(
-                cell.hashid for cell in document if cell.kind == Cell.Kind.INPUT
-            )

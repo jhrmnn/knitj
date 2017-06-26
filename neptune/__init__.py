@@ -1,1 +1,1 @@
-from .neptune import neptune
+from .neptune import Neptune

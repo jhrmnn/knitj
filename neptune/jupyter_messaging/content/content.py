@@ -18,8 +18,6 @@ class StreamName(Enum):
 class MIME(Enum):
     TEXT_PLAIN = 'text/plain'
     TEXT_HTML = 'text/html'
-    TEXT_MARKDOWN = 'text/markdown'
-    TEXT_PYTHON = 'text/python'
     IMAGE_PNG = 'image/png'
 
 

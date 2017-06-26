@@ -3,8 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import re
 
-from .Cell import Cell, get_hash
-from .jupyter_messaging.content import MIME
+from .Cell import BaseCell, TextCell, CodeCell
 
 from typing import List
 
@@ -14,9 +13,9 @@ class ParsingError(Exception):
 
 
 class Parser:
-    def parse(self, text: str) -> List[Cell]:
+    def parse(self, text: str) -> List[BaseCell]:
         text = text.rstrip()
-        cells: List[Cell] = []
+        cells: List[BaseCell] = []
         buffer = ''
         while text:
             m = re.search(r'((?<=\n)|^)```python|<!--|$', text)
@@ -24,11 +23,7 @@ class Parser:
                 buffer += text[:m.start()]
                 buffer = buffer.strip()
                 if buffer:
-                    cells.append(Cell(
-                        Cell.Kind.TEXT,
-                        {MIME.TEXT_MARKDOWN: buffer},
-                        get_hash(buffer)
-                    ))
+                    cells.append(TextCell(buffer))
                     buffer = ''
                 text = text[m.end():]
             if m.group(0) == '```python':
@@ -36,11 +31,7 @@ class Parser:
                 if not m:
                     raise ParsingError('Unclosed Python cell')
                 code = text[:m.start()].strip()
-                cells.append(Cell(
-                    Cell.Kind.INPUT,
-                    {MIME.TEXT_PYTHON: code},
-                    get_hash(code)
-                ))
+                cells.append(CodeCell(code))
                 text = text[m.end():]
             elif m.group(0) == '<!--':
                 m = re.search(r'-->', text)
