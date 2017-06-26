@@ -27,7 +27,7 @@ class Neptune:
     def __init__(self, path: str) -> None:
         self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
-        self._source = Source(path)
+        self._source = Source(self._source_handler, path)
         self._webserver = WebServer(self)
         self._cell_order: List[Hash] = []
         self._cells: Dict[Hash, BaseCell] = {}
@@ -87,22 +87,21 @@ class Neptune:
             html=cell.html,
         ))
 
-    async def _source_receiver(self) -> None:
-        async for src in self._source:
-            cells = Parser().parse(src)
-            new_cells = [cell for cell in cells if cell.hashid not in self._cells]
-            self._cell_order = [cell.hashid for cell in cells]
-            self._cells = {
-                cell.hashid: self._cells.get(cell.hashid, cell) for cell in cells
-            }
-            for cell in new_cells:
-                if isinstance(cell, CodeCell):
-                    self._kernel.execute(cell.hashid, cell.code)
-            self._broadcast(dict(
-                kind='document',
-                hashids=self._cell_order,
-                htmls={cell.hashid: cell.html for cell in new_cells},
-            ))
+    def _source_handler(self, src: str) -> None:
+        cells = Parser().parse(src)
+        new_cells = [cell for cell in cells if cell.hashid not in self._cells]
+        self._cell_order = [cell.hashid for cell in cells]
+        self._cells = {
+            cell.hashid: self._cells.get(cell.hashid, cell) for cell in cells
+        }
+        for cell in new_cells:
+            if isinstance(cell, CodeCell):
+                self._kernel.execute(cell.hashid, cell.code)
+        self._broadcast(dict(
+            kind='document',
+            hashids=self._cell_order,
+            htmls={cell.hashid: cell.html for cell in new_cells},
+        ))
 
     @property
     def html(self) -> str:
@@ -111,7 +110,7 @@ class Neptune:
     async def run(self) -> None:
         await asyncio.gather(
             websockets.serve(self._nb_handler, 'localhost', 6060),
-            self._source_receiver(),
+            self._source.run(),
             self._kernel.run(),
             self._webserver.run(),
         )

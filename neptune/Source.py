@@ -8,7 +8,7 @@ from asyncio import Queue
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
-from typing import Set, AsyncIterable  # noqa
+from typing import Set, Callable  # noqa
 from .Cell import Hash  # noqa
 
 
@@ -28,19 +28,17 @@ class FileChangedHandler(FileSystemEventHandler):
         self._queue_modified(event)
 
 
-class Source(AsyncIterable[str]):
-    def __init__(self, path: str) -> None:
+class Source:
+    def __init__(self, handler: Callable[[str], None], path: str) -> None:
+        self.handler = handler
         self.path = Path(path)
         self._file_change: 'Queue[str]' = Queue()
         self._observer = Observer()
         self._observer.schedule(FileChangedHandler(queue=self._file_change), '.')
 
-    def __aiter__(self) -> 'Source':
+    async def run(self) -> None:
         self._observer.start()
-        return self
-
-    async def __anext__(self) -> str:
         while True:
             file = Path(await self._file_change.get())
             if file == self.path:
-                return file.read_text()
+                self.handler(file.read_text())
