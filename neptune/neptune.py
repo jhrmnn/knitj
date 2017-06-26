@@ -13,7 +13,7 @@ from bs4 import BeautifulSoup
 from .Notebook import Notebook
 from .Kernel import Kernel
 from .Source import Source
-from .WebServer import WebServer
+from .Server import WebServer, WSServer
 from .Parser import Parser
 from .Cell import CodeCell
 from . import jupyter_messaging as jupy
@@ -38,15 +38,19 @@ class Neptune:
         cells = Parser().parse(self.source.read_text())
         self._cell_order = [cell.hashid for cell in cells]
         self._cells = {cell.hashid: cell for cell in cells}
-        if self.report:
-            soup = BeautifulSoup(self.report.read_text(), 'html.parser')
-            for cell_tag in soup.find(id='cells').find_all('div', class_='code-cell'):
-                if cell_tag['id'] in self._cells:
-                    cell = self._cells[Hash(cell_tag['id'])]
-                    assert isinstance(cell, CodeCell)
-                    cell.set_output({
-                        MIME.TEXT_HTML: str(cell_tag.find(class_='output'))
-                    })
+        if not self.report:
+            return
+        soup = BeautifulSoup(self.report.read_text(), 'html.parser')
+        cells_tag = soup.find(id='cells')
+        if not cells_tag:
+            return
+        for cell_tag in cells_tag.find_all('div', class_='code-cell'):
+            if cell_tag['id'] in self._cells:
+                cell = self._cells[Hash(cell_tag['id'])]
+                assert isinstance(cell, CodeCell)
+                cell.set_output({
+                    MIME.TEXT_HTML: str(cell_tag.find(class_='output'))
+                })
 
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
@@ -60,7 +64,7 @@ class Neptune:
         else:
             raise ValueError(f'Unkonwn message: {msg["kind"]}')
 
-    async def _nb_handler(self, ws: WebSocket, path: str) -> None:
+    async def _nb_handler(self, ws: WebSocket) -> None:
         print('Got client:', ws)
         nb = Notebook(ws, self._nb_msg_handler)
         self._notebooks.add(nb)
@@ -130,6 +134,6 @@ class Neptune:
         await asyncio.gather(
             self._kernel.run(),
             self._webserver.run(),
-            websockets.serve(self._nb_handler, 'localhost', 6060),
             Source(self._source_handler, self.source).run(),
+            WSServer(self._nb_handler).run(),
         )

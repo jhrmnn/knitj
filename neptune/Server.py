@@ -11,8 +11,11 @@ import ansi2html
 from pygments.styles import get_style_by_name
 from pygments.formatters import HtmlFormatter
 from jinja2 import Template
+import websockets
 
-from typing import Callable
+from typing import Callable, Awaitable
+
+WebSocket = websockets.WebSocketServerProtocol
 
 
 class WebServer:
@@ -47,6 +50,35 @@ class WebServer:
     async def run(self) -> None:
         server = web.Server(self.handler)
         loop = asyncio.get_event_loop()
-        await loop.create_server(server, '127.0.0.1', 8080)  # type: ignore
+        for port in range(8080, 8100):
+            try:
+                await loop.create_server(server, '127.0.0.1', port)  # type: ignore
+            except OSError:
+                pass
+            else:
+                break
+        else:
+            raise RuntimeError('Cannot find an available port')
+        print(f'Started web server on port {port}')
         if self._browser:
-            self._browser.open('http://localhost:8080')
+            self._browser.open(f'http://localhost:{port}')
+
+
+class WSServer:
+    def __init__(self, handler: Callable[[WebSocket], Awaitable]) -> None:
+        self.handler = handler
+
+    async def _handler(self, ws: WebSocket, path: str) -> None:
+        await self.handler(ws)
+
+    async def run(self) -> None:
+        for port in range(6060, 6080):
+            try:
+                await websockets.serve(self._handler, 'localhost', port)
+            except OSError:
+                pass
+            else:
+                break
+        else:
+            raise RuntimeError('Cannot find an available port')
+        print(f'Started websocket server on port {port}')
