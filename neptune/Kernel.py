@@ -71,4 +71,7 @@ class Kernel:
                 self._shell_receiver()
             )
         finally:
-            self._client.shutdown()
+            try:
+                self._client.shutdown()
+            except AttributeError:
+                pass
