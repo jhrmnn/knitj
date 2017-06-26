@@ -1,4 +1,4 @@
-Alternative front-end to Jupyter kernels.
+Alternative front-end to Jupyter kernels, in development.
 
 ### Motivation
 
