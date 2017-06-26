@@ -48,8 +48,8 @@ class Thebe:
         if not cells_tag:
             return
         for cell_tag in cells_tag.find_all('div', class_='code-cell'):
-            if cell_tag['id'] in self._cells:
-                cell = self._cells[Hash(cell_tag['id'])]
+            if cell_tag.attrs['class'][0] in self._cells:
+                cell = self._cells[Hash(cell_tag.attrs['class'][0])]
                 assert isinstance(cell, CodeCell)
                 cell.set_output({
                     MIME.TEXT_HTML: str(cell_tag.find(class_='output'))
