@@ -12,8 +12,8 @@ def parse_cli() -> dict:
     arg = parser.add_argument
     arg('source', metavar='FILE')
     arg('report', metavar='REPORT', nargs='?')
+    arg('-b', '--browser', type=webbrowser.get, default=webbrowser.get())
     arg('-n', '--no-browser', dest='browser', action='store_false')
-    arg('-b', '--browser', type=webbrowser.get)
     return vars(parser.parse_args())
 
 
