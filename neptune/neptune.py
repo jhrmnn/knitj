@@ -15,7 +15,7 @@ from .Cell import CodeCell
 from . import jupyter_messaging as jupy
 from .jupyter_messaging.content import MIME
 
-from typing import Set, Dict, List  # noqa
+from typing import Set, Dict, List, Optional  # noqa
 from .Cell import BaseCell, Hash  # noqa
 
 WebSocket = websockets.WebSocketServerProtocol
@@ -26,7 +26,7 @@ _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 class Neptune:
     def __init__(self, path: str) -> None:
         self._notebooks: Set[Notebook] = set()
-        self._kernel = Kernel()
+        self._kernel = Kernel(self._kernel_handler)
         self._source = Source(path)
         self._webserver = WebServer(self)
         self._cell_order: List[Hash] = []
@@ -55,39 +55,37 @@ class Neptune:
         for nb in self._notebooks:
             nb.queue_msg(msg)
 
-    async def _kernel_receiver(self) -> None:
-        while True:
-            msg, hashid = await self._kernel.get_msg()
-            print(msg)
-            if not hashid:
-                continue
-            cell = self._cells[hashid]
-            assert isinstance(cell, CodeCell)
-            if isinstance(msg, jupy.EXECUTE_RESULT):
-                cell.set_output(msg.content.data)
-            elif isinstance(msg, jupy.STREAM):
-                cell.append_stream(msg.content.text)
-            elif isinstance(msg, jupy.DISPLAY_DATA):
-                cell.set_output(msg.content.data)
-            elif isinstance(msg, jupy.EXECUTE_REPLY):
-                if isinstance(msg.content, jupy.content.ERROR):
-                    html = _ansi_convert(
-                        '\n'.join(msg.content.traceback), full=False
-                    )
-                    cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
-            elif isinstance(msg, jupy.STATUS):
-                continue
-            elif isinstance(msg, jupy.EXECUTE_INPUT):
-                continue
-            elif isinstance(msg, jupy.ERROR):
-                continue
-            else:
-                assert False
-            self._broadcast(dict(
-                kind='cell',
-                hashid=cell.hashid,
-                html=cell.html,
-            ))
+    def _kernel_handler(self, msg: jupy.Message, hashid: Optional[Hash]) -> None:
+        print(msg)
+        if not hashid:
+            return
+        cell = self._cells[hashid]
+        assert isinstance(cell, CodeCell)
+        if isinstance(msg, jupy.EXECUTE_RESULT):
+            cell.set_output(msg.content.data)
+        elif isinstance(msg, jupy.STREAM):
+            cell.append_stream(msg.content.text)
+        elif isinstance(msg, jupy.DISPLAY_DATA):
+            cell.set_output(msg.content.data)
+        elif isinstance(msg, jupy.EXECUTE_REPLY):
+            if isinstance(msg.content, jupy.content.ERROR):
+                html = _ansi_convert(
+                    '\n'.join(msg.content.traceback), full=False
+                )
+                cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
+        elif isinstance(msg, jupy.STATUS):
+            return
+        elif isinstance(msg, jupy.EXECUTE_INPUT):
+            return
+        elif isinstance(msg, jupy.ERROR):
+            return
+        else:
+            assert False
+        self._broadcast(dict(
+            kind='cell',
+            hashid=cell.hashid,
+            html=cell.html,
+        ))
 
     async def _source_receiver(self) -> None:
         async for src in self._source:
@@ -115,6 +113,5 @@ class Neptune:
             websockets.serve(self._nb_handler, 'localhost', 6060),
             self._source_receiver(),
             self._kernel.run(),
-            self._kernel_receiver(),
             self._webserver.run(),
         )

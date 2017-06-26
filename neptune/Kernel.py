@@ -12,26 +12,29 @@ from .Cell import Hash
 from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
 
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Callable
 
 
 class Kernel:
-    def __init__(self) -> None:
+    def __init__(self, handler: Callable[[jupy.Message, Optional[Hash]], None]) -> None:
+        self.handler = handler
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[UUID, Hash] = {}
-        self._inputs: Dict[Hash, str] = {}
         self._msg_queue: 'Queue[Dict]' = Queue()
 
-    async def get_msg(self) -> Tuple[jupy.Message, Optional[Hash]]:
-        dct = await self._msg_queue.get()
-        try:
-            msg = jupy.parse(dct)
-        except (TypeError, ValueError):
-            pprint(dct)
-            raise
-        if msg.parent_header:
-            return msg, self._hashids[msg.parent_header.msg_id]
-        return msg, None
+    async def _receiver(self) -> None:
+        while True:
+            dct = await self._msg_queue.get()
+            try:
+                msg = jupy.parse(dct)
+            except (TypeError, ValueError):
+                pprint(dct)
+                raise
+            if msg.parent_header:
+                hashid: Optional[Hash] = self._hashids[msg.parent_header.msg_id]
+            else:
+                hashid = None
+            self.handler(msg, hashid)
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
@@ -62,6 +65,10 @@ class Kernel:
         try:
             kernel.start_kernel()
             self._client = kernel.client()
-            await asyncio.gather(self._iopub_receiver(), self._shell_receiver())
+            await asyncio.gather(
+                self._receiver(),
+                self._iopub_receiver(),
+                self._shell_receiver()
+            )
         finally:
             self._client.shutdown()
