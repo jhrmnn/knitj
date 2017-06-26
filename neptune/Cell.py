@@ -73,7 +73,7 @@ class CodeCell(BaseCell):
         self._stream += s
         self._html = None
 
-    def set_output(self, output: Dict[MIME, str]) -> None:
+    def set_output(self, output: Optional[Dict[MIME, str]]) -> None:
         self._output = output
         self._html = None
 

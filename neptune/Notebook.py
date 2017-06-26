@@ -22,6 +22,7 @@ class Notebook:
         while True:
             data = await self.ws.recv()
             msg: Dict = json.loads(data)
+            print(f'{self.ws} got message: {msg}')
             self.handler(msg)
 
     def queue_msg(self, msg: Dict) -> None:

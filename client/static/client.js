@@ -25,13 +25,28 @@ function send(msg) {
 window.setInterval(() => { send({ kind: 'ping' }); }, 50000);
 
 function reevaluate(hashid) {
+  const cell = document.getElementById(hashid);
+  cell.classList.add('evaluating');
   send({ kind: 'reevaluate', hashid });
+}
+
+function reevaluateFromHere(hashid) {
+  const arr = Array.from(document.getElementById('cells').children);
+  const idx = arr.findIndex(cell => cell.id === hashid);
+  arr.slice(idx).forEach((cell) => {
+    cell.classList.add('evaluating');
+    send({ kind: 'reevaluate', hashid: cell.id });
+  });
 }
 
 function appendReevaluate(cell) {
   cell.appendChild(h('button', (button) => {
     button.onclick = () => { reevaluate(cell.id); };
-    button.textContent = 'Reevaluate';
+    button.textContent = 'Evaluate';
+  }));
+  cell.appendChild(h('button', (button) => {
+    button.onclick = () => { reevaluateFromHere(cell.id); };
+    button.textContent = 'Evaluate all from here';
   }));
 }
 
@@ -58,3 +73,9 @@ ws.onmessage = ({ data }) => {
     document.getElementById('cells').replaceWith(cellsEl);
   }
 };
+
+Array.from(document.getElementById('cells').children).forEach((cell) => {
+  if (cell.classList.contains('code-cell')) {
+    appendReevaluate(cell);
+  }
+});

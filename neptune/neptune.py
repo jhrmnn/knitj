@@ -40,7 +40,12 @@ class Neptune:
             hashid = msg['hashid']
             cell = self._cells[hashid]
             assert isinstance(cell, CodeCell)
+            cell.set_output(None)
             self._kernel.execute(hashid, cell.code)
+        elif msg['kind'] == 'ping':
+            pass
+        else:
+            raise ValueError(f'Unkonwn message: {msg["kind"]}')
 
     async def _nb_handler(self, ws: WebSocket, path: str) -> None:
         print('Got client:', ws)
