@@ -28,10 +28,10 @@ class WebServer:
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
 
-    def get_index(self) -> str:
+    def get_index(self, cells: str = None) -> str:
         template = Template((self._root/'templates/index.html').read_text())
         return template.render(
-            cells=self.get_html(),
+            cells=cells or self.get_html(),
             styles='\n'.join(chain(
                 [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
                 map(str, ansi2html.style.get_styles())

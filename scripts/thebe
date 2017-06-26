@@ -14,15 +14,23 @@ def parse_cli() -> dict:
     arg('report', metavar='REPORT', nargs='?')
     arg('-b', '--browser', type=webbrowser.get, default=webbrowser.get())
     arg('-n', '--no-browser', dest='browser', action='store_false')
+    arg('-s', '--static', action='store_true')
     return vars(parser.parse_args())
 
 
-if __name__ == '__main__':
+def main() -> None:
     kwargs = parse_cli()
     from thebe import Thebe
-    task = asyncio.ensure_future(Thebe(**kwargs).run())
+    if kwargs.pop('static'):
+        task = asyncio.ensure_future(Thebe(**kwargs, quiet=True).static())  # type: ignore
+    else:
+        task = asyncio.ensure_future(Thebe(**kwargs).run())
     try:
         asyncio.get_event_loop().run_until_complete(task)
     except KeyboardInterrupt:
         task.cancel()
         asyncio.get_event_loop().run_forever()
+
+
+if __name__ == '__main__':
+    main()

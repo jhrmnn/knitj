@@ -4,6 +4,7 @@
 import hashlib
 import html
 from abc import ABCMeta, abstractmethod
+import asyncio
 
 from misaka import Markdown, HtmlRenderer
 import pygments
@@ -62,6 +63,7 @@ class CodeCell(BaseCell):
         self._output: Optional[Dict[MIME, str]] = None
         self._stream = ''
         self.hashid = Hash(_get_hash(code) + '-code')
+        self._done = asyncio.get_event_loop().create_future()
 
     def __repr__(self) -> str:
         return (
@@ -76,6 +78,12 @@ class CodeCell(BaseCell):
     def set_output(self, output: Optional[Dict[MIME, str]]) -> None:
         self._output = output
         self._html = None
+
+    def set_done(self) -> None:
+        self._done.set_result(None)
+
+    async def wait_for(self) -> None:
+        await self._done
 
     def _to_html(self) -> str:
         code = pygments.highlight(self.code, PythonLexer(), HtmlFormatter())

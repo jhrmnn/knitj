@@ -21,6 +21,7 @@ class Kernel:
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[UUID, Hash] = {}
         self._msg_queue: 'Queue[Dict]' = Queue()
+        self._started = asyncio.get_event_loop().create_future()
 
     async def _receiver(self) -> None:
         while True:
@@ -35,6 +36,9 @@ class Kernel:
             else:
                 hashid = None
             self.handler(msg, hashid)
+
+    async def wait_for_start(self) -> None:
+        await self._started
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
@@ -65,6 +69,7 @@ class Kernel:
         try:
             kernel.start_kernel()
             self._client = kernel.client()
+            self._started.set_result(None)
             await asyncio.gather(
                 self._receiver(),
                 self._iopub_receiver(),

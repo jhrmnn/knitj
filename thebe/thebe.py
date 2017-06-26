@@ -4,6 +4,7 @@
 import os
 from pathlib import Path
 import asyncio
+import sys
 import webbrowser
 
 import ansi2html
@@ -29,9 +30,10 @@ _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
 class Thebe:
     def __init__(self, source: os.PathLike, report: os.PathLike = None,
-                 browser: webbrowser.BaseBrowser = None) -> None:
+                 browser: webbrowser.BaseBrowser = None, quiet: bool = False) -> None:
         self.source = Path(source)
         self.report = Path(report) if report else None
+        self.quiet = quiet
         self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
         self._webserver = WebServer(self._get_html, browser=browser)
@@ -83,7 +85,8 @@ class Thebe:
         self._save_report()
 
     def _kernel_handler(self, msg: jupy.Message, hashid: Optional[Hash]) -> None:
-        print(msg)
+        if not self.quiet:
+            print(msg)
         if not hashid:
             return
         cell = self._cells[hashid]
@@ -100,6 +103,8 @@ class Thebe:
                     '\n'.join(msg.content.traceback), full=False
                 )
                 cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
+            elif isinstance(msg.content, jupy.content.OK):
+                cell.set_done()
         elif isinstance(msg, (jupy.STATUS, jupy.EXECUTE_INPUT, jupy.ERROR)):
             return
         else:
@@ -133,6 +138,31 @@ class Thebe:
     def _get_html(self) -> str:
         return '\n'.join(self._cells[hashid].html for hashid in self._cell_order)
 
+    async def _printer(self) -> None:
+        index = self._webserver.get_index('__CELLS__')
+        front, back = index.split('__CELLS__')
+        await self._kernel.wait_for_start()
+        for hashid in self._cell_order:
+            cell = self._cells[hashid]
+            if isinstance(cell, CodeCell):
+                self._kernel.execute(cell.hashid, cell.code)
+        f = self.report.open('w') if self.report else sys.stdout
+        f.write(front)
+        try:
+            for hashid in self._cell_order:
+                cell = self._cells[hashid]
+                if isinstance(cell, CodeCell):
+                    await cell.wait_for()
+                f.write(cell.html)
+        except:
+            raise
+        else:
+            f.write(back)
+        finally:
+            if self.report:
+                f.close()
+        raise AllProcessed
+
     async def run(self) -> None:
         await asyncio.gather(
             self._kernel.run(),
@@ -140,3 +170,13 @@ class Thebe:
             Source(self._source_handler, self.source).run(),
             WSServer(self._nb_handler).run(),
         )
+
+    async def static(self) -> None:
+        try:
+            await asyncio.gather(self._kernel.run(), self._printer())
+        except AllProcessed:
+            self._kernel._client.shutdown()
+
+
+class AllProcessed(Exception):
+    pass
