@@ -5,18 +5,19 @@
 from argparse import ArgumentParser
 import asyncio
 
-from neptune import Neptune
-
 
 def parse_cli() -> dict:
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg('path', metavar='FILE')
+    arg('source', metavar='FILE')
+    arg('report', metavar='REPORT', nargs='?')
     return vars(parser.parse_args())
 
 
 if __name__ == '__main__':
-    task = asyncio.ensure_future(Neptune(**parse_cli()).run())
+    kwargs = parse_cli()
+    from neptune import Neptune
+    task = asyncio.ensure_future(Neptune(**kwargs).run())
     try:
         asyncio.get_event_loop().run_until_complete(task)
     except KeyboardInterrupt:

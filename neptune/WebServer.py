@@ -21,17 +21,19 @@ class WebServer:
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
 
+    def get_index(self) -> str:
+        template = Template((self._root/'templates/index.html').read_text())
+        return template.render(
+            cells=self.get_html(),
+            styles='\n'.join(chain(
+                [HtmlFormatter().get_style_defs()],
+                map(str, ansi2html.style.get_styles())
+            ))
+        )
+
     async def handler(self, request: web.BaseRequest) -> web.Response:
         if request.path == '/':
-            return self._get_response(
-                Template((self._root/'templates/index.html').read_text()).render(
-                    cells=self.get_html(),
-                    styles='\n'.join(chain(
-                        [HtmlFormatter().get_style_defs()],
-                        map(str, ansi2html.style.get_styles())
-                    ))
-                )
-            )
+            return self._get_response(self.get_index())
         try:
             text = (self._root/'static'/request.path[1:]).read_text()
         except FileNotFoundError:

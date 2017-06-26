@@ -1,6 +1,8 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+import os
+from pathlib import Path
 import asyncio
 
 import ansi2html
@@ -24,10 +26,12 @@ _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
 
 class Neptune:
-    def __init__(self, path: str) -> None:
-        self.path = path
+    def __init__(self, source: os.PathLike, report: os.PathLike = None) -> None:
+        self.source = Path(source)
+        self.report = Path(report) if report else None
         self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
+        self._webserver = WebServer(self._get_html)
         self._cell_order: List[Hash] = []
         self._cells: Dict[Hash, BaseCell] = {}
 
@@ -51,6 +55,7 @@ class Neptune:
     def _broadcast(self, msg: Dict) -> None:
         for nb in self._notebooks:
             nb.queue_msg(msg)
+        self._save_report()
 
     def _kernel_handler(self, msg: jupy.Message, hashid: Optional[Hash]) -> None:
         print(msg)
@@ -70,11 +75,7 @@ class Neptune:
                     '\n'.join(msg.content.traceback), full=False
                 )
                 cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
-        elif isinstance(msg, jupy.STATUS):
-            return
-        elif isinstance(msg, jupy.EXECUTE_INPUT):
-            return
-        elif isinstance(msg, jupy.ERROR):
+        elif isinstance(msg, (jupy.STATUS, jupy.EXECUTE_INPUT, jupy.ERROR)):
             return
         else:
             assert False
@@ -100,13 +101,17 @@ class Neptune:
             htmls={cell.hashid: cell.html for cell in new_cells},
         ))
 
+    def _save_report(self) -> None:
+        if self.report:
+            self.report.write_text(self._webserver.get_index())
+
     def _get_html(self) -> str:
         return '\n'.join(self._cells[hashid].html for hashid in self._cell_order)
 
     async def run(self) -> None:
         await asyncio.gather(
             self._kernel.run(),
+            self._webserver.run(),
             websockets.serve(self._nb_handler, 'localhost', 6060),
-            Source(self._source_handler, self.path).run(),
-            WebServer(self._get_html).run(),
+            Source(self._source_handler, self.source).run(),
         )

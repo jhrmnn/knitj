@@ -1,6 +1,7 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+import os
 from pathlib import Path
 import asyncio
 from asyncio import Queue
@@ -29,7 +30,7 @@ class FileChangedHandler(FileSystemEventHandler):
 
 
 class Source:
-    def __init__(self, handler: Callable[[str], None], path: str) -> None:
+    def __init__(self, handler: Callable[[str], None], path: os.PathLike) -> None:
         self.handler = handler
         self.path = Path(path)
         self._file_change: 'Queue[str]' = Queue()
