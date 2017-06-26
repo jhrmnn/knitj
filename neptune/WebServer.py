@@ -10,14 +10,12 @@ import ansi2html
 from pygments.formatters import HtmlFormatter
 from jinja2 import Template
 
-from typing import TYPE_CHECKING
-if TYPE_CHECKING:
-    from .neptune import Neptune  # noqa
+from typing import Callable
 
 
 class WebServer:
-    def __init__(self, neptune: 'Neptune') -> None:
-        self._neptune = neptune
+    def __init__(self, get_html: Callable[[], str]) -> None:
+        self.get_html = get_html
         self._root = Path(__file__).parents[1]/'client'
 
     def _get_response(self, text: str) -> web.Response:
@@ -27,7 +25,7 @@ class WebServer:
         if request.path == '/':
             return self._get_response(
                 Template((self._root/'templates/index.html').read_text()).render(
-                    cells=self._neptune.html,
+                    cells=self.get_html(),
                     styles='\n'.join(chain(
                         [HtmlFormatter().get_style_defs()],
                         map(str, ansi2html.style.get_styles())

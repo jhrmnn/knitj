@@ -28,7 +28,7 @@ class Neptune:
         self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
         self._source = Source(self._source_handler, path)
-        self._webserver = WebServer(self)
+        self._webserver = WebServer(self._get_html)
         self._cell_order: List[Hash] = []
         self._cells: Dict[Hash, BaseCell] = {}
 
@@ -103,8 +103,7 @@ class Neptune:
             htmls={cell.hashid: cell.html for cell in new_cells},
         ))
 
-    @property
-    def html(self) -> str:
+    def _get_html(self) -> str:
         return '\n'.join(self._cells[hashid].html for hashid in self._cell_order)
 
     async def run(self) -> None:
