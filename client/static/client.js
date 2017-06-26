@@ -38,7 +38,6 @@ function appendReevaluate(cell) {
 ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
   if (msg.kind === 'cell') {
-    console.log(msg.content);
     const cell = elemFromHtml(msg.html);
     appendReevaluate(cell);
     const origCell = document.getElementById(msg.hashid);
@@ -49,8 +48,9 @@ ws.onmessage = ({ data }) => {
       let cell = document.getElementById(hashid);
       if (!cell) {
         cell = elemFromHtml(msg.htmls[hashid]);
-        if (cell.className === 'output-cell') {
+        if (cell.classList.contains('code-cell')) {
           appendReevaluate(cell);
+          cell.classList.add('evaluating');
         }
       }
       cellsEl.appendChild(cell);
