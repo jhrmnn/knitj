@@ -1,7 +1,8 @@
-from typing import List
+from typing import List, Dict
 
 
 class _Tag:
+    attrs: Dict
     def find(self, tag: str = None, id: str = None, class_: str = None) -> '_Tag': ...
     def find_all(self, tag: str = None, class_: str = None) -> List['_Tag']: ...
     def __getitem__(self, attr: str) -> str: ...
