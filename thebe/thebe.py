@@ -27,7 +27,7 @@ WebSocket = websockets.WebSocketServerProtocol
 _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
 
-class Neptune:
+class Thebe:
     def __init__(self, source: os.PathLike, report: os.PathLike = None,
                  browser: webbrowser.BaseBrowser = None) -> None:
         self.source = Path(source)

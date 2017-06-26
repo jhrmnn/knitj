@@ -19,8 +19,8 @@ def parse_cli() -> dict:
 
 if __name__ == '__main__':
     kwargs = parse_cli()
-    from neptune import Neptune
-    task = asyncio.ensure_future(Neptune(**kwargs).run())
+    from thebe import Thebe
+    task = asyncio.ensure_future(Thebe(**kwargs).run())
     try:
         asyncio.get_event_loop().run_until_complete(task)
     except KeyboardInterrupt:
