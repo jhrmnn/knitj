@@ -33,9 +33,10 @@ class Neptune:
         self.report = Path(report) if report else None
         self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
-        self._cell_order: List[Hash] = []
-        self._cells: Dict[Hash, BaseCell] = {}
         self._webserver = WebServer(self._get_html, browser=browser)
+        cells = Parser().parse(self.source.read_text())
+        self._cell_order = [cell.hashid for cell in cells]
+        self._cells = {cell.hashid: cell for cell in cells}
 
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
