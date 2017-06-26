@@ -27,6 +27,7 @@ window.setInterval(() => { send({ kind: 'ping' }); }, 50000);
 function reevaluate(hashid) {
   const cell = document.getElementById(hashid);
   cell.classList.add('evaluating');
+  cell.getElementsByClassName('output')[0].innerHTML = '';
   send({ kind: 'reevaluate', hashid });
 }
 
@@ -34,8 +35,11 @@ function reevaluateFromHere(hashid) {
   const arr = Array.from(document.getElementById('cells').children);
   const idx = arr.findIndex(cell => cell.id === hashid);
   arr.slice(idx).forEach((cell) => {
-    cell.classList.add('evaluating');
-    send({ kind: 'reevaluate', hashid: cell.id });
+    if (cell.classList.contains('code-cell')) {
+      cell.classList.add('evaluating');
+      cell.getElementsByClassName('output')[0].innerHTML = '';
+      send({ kind: 'reevaluate', hashid: cell.id });
+    }
   });
 }
 
