@@ -8,6 +8,7 @@ import webbrowser
 
 import ansi2html
 import websockets
+from bs4 import BeautifulSoup
 
 from .Notebook import Notebook
 from .Kernel import Kernel
@@ -37,6 +38,15 @@ class Neptune:
         cells = Parser().parse(self.source.read_text())
         self._cell_order = [cell.hashid for cell in cells]
         self._cells = {cell.hashid: cell for cell in cells}
+        if self.report:
+            soup = BeautifulSoup(self.report.read_text(), 'html.parser')
+            for cell_tag in soup.find(id='cells').find_all('div', class_='code-cell'):
+                if cell_tag['id'] in self._cells:
+                    cell = self._cells[Hash(cell_tag['id'])]
+                    assert isinstance(cell, CodeCell)
+                    cell.set_output({
+                        MIME.TEXT_HTML: str(cell_tag.find(class_='output'))
+                    })
 
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':

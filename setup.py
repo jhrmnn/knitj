@@ -35,5 +35,6 @@ setup(
         'aiohttp',
         'pygments',
         'Jinja2',
+        'beautifulsoup4',
     ],
 )
