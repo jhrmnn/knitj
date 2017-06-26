@@ -25,31 +25,32 @@ function send(msg) {
 window.setInterval(() => { send({ kind: 'ping' }); }, 50000);
 
 function reevaluate(hashid) {
-  const cell = document.getElementById(hashid);
-  cell.classList.add('evaluating');
-  cell.getElementsByClassName('output')[0].innerHTML = '';
+  Array.from(document.getElementsByClassName(hashid)).forEach((cell) => {
+    cell.classList.add('evaluating');
+    cell.getElementsByClassName('output')[0].innerHTML = '';
+  });
   send({ kind: 'reevaluate', hashid });
 }
 
 function reevaluateFromHere(hashid) {
   const arr = Array.from(document.getElementById('cells').children);
-  const idx = arr.findIndex(cell => cell.id === hashid);
+  const idx = arr.findIndex(cell => cell.classList[0] === hashid);
   arr.slice(idx).forEach((cell) => {
     if (cell.classList.contains('code-cell')) {
       cell.classList.add('evaluating');
       cell.getElementsByClassName('output')[0].innerHTML = '';
-      send({ kind: 'reevaluate', hashid: cell.id });
+      send({ kind: 'reevaluate', hashid: cell.classList[0] });
     }
   });
 }
 
 function appendReevaluate(cell) {
   cell.appendChild(h('button', (button) => {
-    button.onclick = () => { reevaluate(cell.id); };
+    button.onclick = () => { reevaluate(cell.classList[0]); };
     button.textContent = 'Evaluate';
   }));
   cell.appendChild(h('button', (button) => {
-    button.onclick = () => { reevaluateFromHere(cell.id); };
+    button.onclick = () => { reevaluateFromHere(cell.classList[0]); };
     button.textContent = 'Evaluate all from here';
   }));
 }
@@ -58,13 +59,27 @@ ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
   if (msg.kind === 'cell') {
     const cell = elemFromHtml(msg.html);
-    appendReevaluate(cell);
-    const origCell = document.getElementById(msg.hashid);
-    origCell.replaceWith(cell);
+    const arr = Array.from(document.getElementsByClassName(msg.hashid));
+    if (arr.length == 1) {
+      appendReevaluate(cell);
+      arr[0].replaceWith(cell);
+    } else {
+      arr.forEach((origCell) => {
+        const cloned = cell.cloneNode(true);
+        appendReevaluate(cloned);
+        origCell.replaceWith(cloned);
+      });
+    }
   } else if (msg.kind === 'document') {
     const cellsEl = h('div', (div) => { div.id = 'cells'; });
     msg.hashids.forEach((hashid) => {
-      let cell = document.getElementById(hashid);
+      let cell = document.getElementsByClassName(hashid)[0];
+      if (!cell) {
+        const origCell = cellsEl.getElementsByClassName(hashid)[0];
+        if (origCell) {
+          cell = origCell.cloneNode(true);
+        }
+      }
       if (!cell) {
         cell = elemFromHtml(msg.htmls[hashid]);
         if (cell.classList.contains('code-cell')) {

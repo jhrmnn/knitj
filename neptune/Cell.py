@@ -52,7 +52,7 @@ class TextCell(BaseCell):
         return f'<TextCell hashid={self.hashid!r} content={self.content!r}>'
 
     def _to_html(self) -> str:
-        return f'<div id="{self.hashid}" class="text-cell">{_md(self.content)}</div>'
+        return f'<div class="{self.hashid} text-cell">{_md(self.content)}</div>'
 
 
 class CodeCell(BaseCell):
@@ -92,4 +92,4 @@ class CodeCell(BaseCell):
         if self._stream:
             output = f'<pre>{self._stream}</pre>{output}'
         content = f'<div class="code">{code}</div><div class="output">{output}</div>'
-        return f'<div id="{self.hashid}" class="code-cell">{content}</div>'
+        return f'<div class="{self.hashid} code-cell">{content}</div>'
