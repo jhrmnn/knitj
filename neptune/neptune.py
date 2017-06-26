@@ -4,6 +4,7 @@
 import os
 from pathlib import Path
 import asyncio
+import webbrowser
 
 import ansi2html
 import websockets
@@ -26,14 +27,15 @@ _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
 
 class Neptune:
-    def __init__(self, source: os.PathLike, report: os.PathLike = None) -> None:
+    def __init__(self, source: os.PathLike, report: os.PathLike = None,
+                 browser: webbrowser.BaseBrowser = None) -> None:
         self.source = Path(source)
         self.report = Path(report) if report else None
         self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
-        self._webserver = WebServer(self._get_html)
         self._cell_order: List[Hash] = []
         self._cells: Dict[Hash, BaseCell] = {}
+        self._webserver = WebServer(self._get_html, browser=browser)
 
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':

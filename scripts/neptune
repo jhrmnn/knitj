@@ -3,6 +3,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from argparse import ArgumentParser
+import webbrowser
 import asyncio
 
 
@@ -11,6 +12,8 @@ def parse_cli() -> dict:
     arg = parser.add_argument
     arg('source', metavar='FILE')
     arg('report', metavar='REPORT', nargs='?')
+    arg('-n', '--no-browser', dest='browser', action='store_false')
+    arg('-b', '--browser', type=webbrowser.get)
     return vars(parser.parse_args())
 
 

@@ -4,6 +4,7 @@
 from pathlib import Path
 from itertools import chain
 import asyncio
+import webbrowser
 
 from aiohttp import web
 import ansi2html
@@ -15,9 +16,11 @@ from typing import Callable
 
 
 class WebServer:
-    def __init__(self, get_html: Callable[[], str]) -> None:
+    def __init__(self, get_html: Callable[[], str],
+                 browser: webbrowser.BaseBrowser = None) -> None:
         self.get_html = get_html
         self._root = Path(__file__).parents[1]/'client'
+        self._browser = browser
 
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
@@ -45,3 +48,5 @@ class WebServer:
         server = web.Server(self.handler)
         loop = asyncio.get_event_loop()
         await loop.create_server(server, '127.0.0.1', 8080)  # type: ignore
+        if self._browser:
+            self._browser.open('http://localhost:8080')
