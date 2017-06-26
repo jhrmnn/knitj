@@ -35,10 +35,13 @@ class Neptune:
         self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
         self._webserver = WebServer(self._get_html, browser=browser)
-        cells = Parser().parse(self.source.read_text())
+        if self.source.exists():
+            cells = Parser().parse(self.source.read_text())
+        else:
+            cells = []
         self._cell_order = [cell.hashid for cell in cells]
         self._cells = {cell.hashid: cell for cell in cells}
-        if not self.report:
+        if not self.report or not self.report.exists():
             return
         soup = BeautifulSoup(self.report.read_text(), 'html.parser')
         cells_tag = soup.find(id='cells')
