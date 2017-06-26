@@ -7,6 +7,7 @@ import asyncio
 
 from aiohttp import web
 import ansi2html
+from pygments.styles import get_style_by_name
 from pygments.formatters import HtmlFormatter
 from jinja2 import Template
 
@@ -26,7 +27,7 @@ class WebServer:
         return template.render(
             cells=self.get_html(),
             styles='\n'.join(chain(
-                [HtmlFormatter().get_style_defs()],
+                [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
                 map(str, ansi2html.style.get_styles())
             ))
         )
