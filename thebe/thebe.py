@@ -120,8 +120,8 @@ class Thebe:
         ))
 
     def _save_report(self) -> None:
-        if self.report:
-            self.report.write_text(self._server.get_index())
+        path = self.report or self.source.with_suffix('.html')
+        path.write_text(self._server.get_index())
 
     def _get_html(self) -> str:
         return '\n'.join(self._cells[hashid].html for hashid in self._cell_order)
