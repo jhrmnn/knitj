@@ -79,6 +79,11 @@ class CodeCell(BaseCell):
         self._output = output
         self._html = None
 
+    def reset_output(self) -> None:
+        self._output = None
+        self._html = None
+        self._stream = ''
+
     def set_done(self) -> None:
         if not self._done.done():
             self._done.set_result(None)
