@@ -21,6 +21,8 @@ class MsgType(Enum):
     EXECUTE_RESULT = 'execute_result'
     ERROR = 'error'
     STATUS = 'status'
+    SHUTDOWN_REPLY = 'shutdown_reply'
+    SHUTDOWN_REQUEST = 'shutdown_request'
 
     def __str__(self) -> str:
         return colstr(self.name, _msg_colors[self])
@@ -35,6 +37,7 @@ _msg_colors = {
     MsgType.EXECUTE_RESULT: 'cyan',
     MsgType.ERROR: 'normal',
     MsgType.STATUS: 'green',
+    MsgType.SHUTDOWN_REPLY: 'red',
 }
 
 
@@ -124,6 +127,12 @@ class KernelStatusMessage(BaseMessage):
         self.content = cnt.KernelStatusContent(**content)
 
 
+class ShutdownReplyMessage(BaseMessage):
+    def __init__(self, *, content: Dict, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.content = cnt.ShutdownReplyContent(**content)
+
+
 _msg_classes = {
     MsgType.EXECUTE_REQUEST: ExecuteRequestMessage,
     MsgType.EXECUTE_REPLY: ExecuteReplyMessage,
@@ -133,6 +142,7 @@ _msg_classes = {
     MsgType.EXECUTE_RESULT: ExecuteResultMessage,
     MsgType.ERROR: ErrorMessage,
     MsgType.STATUS: KernelStatusMessage,
+    MsgType.SHUTDOWN_REPLY: ShutdownReplyMessage,
 }
 
 

@@ -99,3 +99,7 @@ ws.onmessage = ({ data }) => {
 Array.from(document.getElementsByClassName('code-cell')).forEach((cell) => {
   appendReevaluate(cell);
 });
+document.body.insertBefore(h('button', (button) => {
+    button.onclick = () => { send({ kind: 'restart_kernel' }) };
+    button.textContent = 'Restart kernel';
+  }), document.body.firstChild);

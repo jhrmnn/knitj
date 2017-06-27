@@ -32,13 +32,16 @@ class Kernel:
                 pprint(dct)
                 raise
             if msg.parent_header:
-                hashid: Optional[Hash] = self._hashids[msg.parent_header.msg_id]
+                hashid: Optional[Hash] = self._hashids.get(msg.parent_header.msg_id)
             else:
                 hashid = None
             self.handler(msg, hashid)
 
     async def wait_for_start(self) -> None:
         await self._started
+
+    def restart(self) -> None:
+        self._kernel.restart_kernel()
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
@@ -65,10 +68,10 @@ class Kernel:
         self._hashids[msg_id] = hashid
 
     async def run(self) -> None:
-        kernel = jupyter_client.KernelManager(kernel_name='python3')
+        self._kernel = jupyter_client.KernelManager(kernel_name='python3')
         try:
-            kernel.start_kernel()
-            self._client = kernel.client()
+            self._kernel.start_kernel()
+            self._client = self._kernel.client()
             self._started.set_result(None)
             await asyncio.gather(
                 self._receiver(),

@@ -9,5 +9,6 @@ from .message import (
     ExecuteResultMessage as EXECUTE_RESULT,
     ErrorMessage as ERROR,
     KernelStatusMessage as STATUS,
+    ShutdownReplyMessage as SHUTDOWN_REPLY,
     parse
 )

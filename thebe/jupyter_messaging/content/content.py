@@ -119,3 +119,9 @@ class ExecuteResultContent(BaseContent):
 class KernelStatusContent(BaseContent):
     def __init__(self, *, execution_state: str) -> None:
         self.execution_state = ExecutionState(execution_state)
+
+
+class ShutdownReplyContent(BaseContent):
+    def __init__(self, *, restart: bool, status: str) -> None:
+        self.restart = restart
+        self.status = status

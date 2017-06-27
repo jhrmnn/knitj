@@ -59,6 +59,8 @@ class Thebe:
             assert isinstance(cell, CodeCell)
             cell.set_output(None)
             self._kernel.execute(hashid, cell.code)
+        elif msg['kind'] == 'restart_kernel':
+            self._kernel.restart()
         elif msg['kind'] == 'ping':
             pass
         else:
@@ -89,7 +91,9 @@ class Thebe:
                 cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
             elif isinstance(msg.content, jupy.content.OK):
                 cell.set_done()
-        elif isinstance(msg, (jupy.STATUS, jupy.EXECUTE_INPUT, jupy.ERROR)):
+        elif isinstance(msg, (jupy.STATUS,
+                              jupy.EXECUTE_INPUT,
+                              jupy.ERROR)):
             return
         else:
             assert False
