@@ -3,6 +3,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 /* eslint-env browser */
+/* global renderMath */
 
 function h(tagName, func) {
   const el = document.createElement(tagName);
@@ -60,7 +61,7 @@ ws.onmessage = ({ data }) => {
   if (msg.kind === 'cell') {
     const cell = elemFromHtml(msg.html);
     const arr = Array.from(document.getElementsByClassName(msg.hashid));
-    if (arr.length == 1) {
+    if (arr.length === 1) {
       appendReevaluate(cell);
       arr[0].replaceWith(cell);
     } else {
@@ -85,6 +86,8 @@ ws.onmessage = ({ data }) => {
         if (cell.classList.contains('code-cell')) {
           appendReevaluate(cell);
           cell.classList.add('evaluating');
+        } else if (cell.classList.contains('text-cell')) {
+          renderMath(cell);
         }
       }
       cellsEl.appendChild(cell);
@@ -93,8 +96,6 @@ ws.onmessage = ({ data }) => {
   }
 };
 
-Array.from(document.getElementById('cells').children).forEach((cell) => {
-  if (cell.classList.contains('code-cell')) {
-    appendReevaluate(cell);
-  }
+Array.from(document.getElementsByClassName('code-cell')).forEach((cell) => {
+  appendReevaluate(cell);
 });
