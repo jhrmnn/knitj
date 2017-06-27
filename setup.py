@@ -10,6 +10,10 @@ setup(
     url='https://github.com/azag0/thebe',
     packages=find_packages(),
     scripts=['scripts/thebe'],
+    package_data={'thebe': [
+        'client/static/*',
+        'client/templates/*',
+    ]},
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Environment :: Console',

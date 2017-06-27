@@ -28,7 +28,7 @@ class Server:
                  browser: webbrowser.BaseBrowser = None) -> None:
         self.get_html = get_html
         self._notebooks: Set[web.WebSocketResponse] = set()
-        self._root = Path(__file__).parents[1]/'client'
+        self._root = Path(__file__).parent/'client'
         self._browser = browser
         self._nb_msg_handler = nb_msg_handler
         self._msg_queue: 'Queue[Dict]' = Queue()
