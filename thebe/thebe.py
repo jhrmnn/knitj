@@ -28,7 +28,8 @@ class Thebe:
     def __init__(self, source: os.PathLike, report: os.PathLike = None,
                  browser: webbrowser.BaseBrowser = None, quiet: bool = False) -> None:
         self.source = Path(source)
-        self.report = Path(report) if report else None
+        self._report_given = bool(report)
+        self.report = Path(report) if report else self.source.with_suffix('.html')
         self.quiet = quiet
         self._kernel = Kernel(self._kernel_handler)
         self._server = Server(self._get_html, self._nb_msg_handler, browser=browser)
@@ -120,8 +121,8 @@ class Thebe:
         ))
 
     def _save_report(self) -> None:
-        path = self.report or self.source.with_suffix('.html')
-        path.write_text(self._server.get_index())
+        if self.report:
+            self.report.write_text(self._server.get_index())
 
     def _get_html(self) -> str:
         return '\n'.join(self._cells[hashid].html for hashid in self._cell_order)
@@ -134,7 +135,7 @@ class Thebe:
             cell = self._cells[hashid]
             if isinstance(cell, CodeCell):
                 self._kernel.execute(cell.hashid, cell.code)
-        f = self.report.open('w') if self.report else sys.stdout
+        f = self.report.open('w') if self._report_given else sys.stdout
         f.write(front)
         try:
             for hashid in self._cell_order:
