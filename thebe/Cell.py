@@ -80,7 +80,8 @@ class CodeCell(BaseCell):
         self._html = None
 
     def set_done(self) -> None:
-        self._done.set_result(None)
+        if not self._done.done():
+            self._done.set_result(None)
 
     async def wait_for(self) -> None:
         await self._done
