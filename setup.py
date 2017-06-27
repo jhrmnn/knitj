@@ -28,7 +28,6 @@ setup(
         'watchdog',
         'ipykernel',
         'jupyter-client',
-        'websockets',
         'mypy_extensions',
         'ansi2html',
         'misaka',

@@ -8,13 +8,11 @@ import sys
 import webbrowser
 
 import ansi2html
-import websockets
 from bs4 import BeautifulSoup
 
-from .Notebook import Notebook
 from .Kernel import Kernel
 from .Source import Source
-from .Server import WebServer, WSServer
+from .Server import Server
 from .Parser import Parser
 from .Cell import CodeCell
 from . import jupyter_messaging as jupy
@@ -22,8 +20,6 @@ from .jupyter_messaging.content import MIME
 
 from typing import Set, Dict, List, Optional  # noqa
 from .Cell import BaseCell, Hash  # noqa
-
-WebSocket = websockets.WebSocketServerProtocol
 
 _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
@@ -34,9 +30,8 @@ class Thebe:
         self.source = Path(source)
         self.report = Path(report) if report else None
         self.quiet = quiet
-        self._notebooks: Set[Notebook] = set()
         self._kernel = Kernel(self._kernel_handler)
-        self._webserver = WebServer(self._get_html, browser=browser)
+        self._server = Server(self._get_html, self._nb_msg_handler, browser=browser)
         if self.source.exists():
             cells = Parser().parse(self.source.read_text())
         else:
@@ -69,19 +64,8 @@ class Thebe:
         else:
             raise ValueError(f'Unkonwn message: {msg["kind"]}')
 
-    async def _nb_handler(self, ws: WebSocket) -> None:
-        print('Got client:', ws)
-        nb = Notebook(ws, self._nb_msg_handler)
-        self._notebooks.add(nb)
-        try:
-            await nb.run()
-        except websockets.ConnectionClosed as e:
-            print('Notebook disconnected:', ws)
-        self._notebooks.remove(nb)
-
     def _broadcast(self, msg: Dict) -> None:
-        for nb in self._notebooks:
-            nb.queue_msg(msg)
+        self._server.broadcast(msg)
         self._save_report()
 
     def _kernel_handler(self, msg: jupy.Message, hashid: Optional[Hash]) -> None:
@@ -133,13 +117,13 @@ class Thebe:
 
     def _save_report(self) -> None:
         if self.report:
-            self.report.write_text(self._webserver.get_index())
+            self.report.write_text(self._server.get_index())
 
     def _get_html(self) -> str:
         return '\n'.join(self._cells[hashid].html for hashid in self._cell_order)
 
     async def _printer(self) -> None:
-        index = self._webserver.get_index('__CELLS__')
+        index = self._server.get_index('__CELLS__')
         front, back = index.split('__CELLS__')
         await self._kernel.wait_for_start()
         for hashid in self._cell_order:
@@ -164,10 +148,9 @@ class Thebe:
         raise AllProcessed
 
     async def run(self) -> None:
-        ws_port = await WSServer(self._nb_handler).run()
         await asyncio.gather(
             self._kernel.run(),
-            self._webserver.run(ws_port),
+            self._server.run(),
             Source(self._source_handler, self.source).run(),
         )
 

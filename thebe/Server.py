@@ -3,7 +3,9 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from pathlib import Path
 from itertools import chain
+import json
 import asyncio
+from asyncio import Queue
 import webbrowser
 
 from aiohttp import web
@@ -11,25 +13,40 @@ import ansi2html
 from pygments.styles import get_style_by_name
 from pygments.formatters import HtmlFormatter
 from jinja2 import Template
-import websockets
 
-from typing import Callable, Awaitable, Optional  # noqa
-
-WebSocket = websockets.WebSocketServerProtocol
+from typing import Callable, Awaitable, Optional, Dict, Set  # noqa
 
 
-class WebServer:
+class App:
+    def __init__(self) -> None:
+        self.loop = asyncio.get_event_loop()
+
+
+class Server:
     def __init__(self, get_html: Callable[[], str],
+                 nb_msg_handler: Callable[[Dict], None],
                  browser: webbrowser.BaseBrowser = None) -> None:
         self.get_html = get_html
+        self._notebooks: Set[web.WebSocketResponse] = set()
         self._root = Path(__file__).parents[1]/'client'
         self._browser = browser
-        self._ws_port: Optional[int] = None
+        self._nb_msg_handler = nb_msg_handler
+        self._msg_queue: 'Queue[Dict]' = Queue()
 
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
 
-    def get_index(self, cells: str = None) -> str:
+    def broadcast(self, msg: Dict) -> None:
+        self._msg_queue.put_nowait(msg)
+
+    async def _broadcaster(self) -> None:
+        while True:
+            msg = await self._msg_queue.get()
+            data = json.dumps(msg)
+            for ws in self._notebooks:
+                await ws.send_str(data)
+
+    def get_index(self, cells: str = None, client: bool = False) -> str:
         template = Template((self._root/'templates/index.html').read_text())
         return template.render(
             cells=cells or self.get_html(),
@@ -37,20 +54,30 @@ class WebServer:
                 [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
                 map(str, ansi2html.style.get_styles())
             )),
-            ws_port=self._ws_port,
+            client=client,
         )
 
     async def handler(self, request: web.BaseRequest) -> web.Response:
         if request.path == '/':
-            return self._get_response(self.get_index())
+            return self._get_response(self.get_index(client=True))
+        if request.path == '/ws':
+            ws = web.WebSocketResponse(autoclose=False)
+            request.app = App()  # type: ignore
+            await ws.prepare(request)
+            print('Got client:', ws)
+            self._notebooks.add(ws)
+            async for msg in ws:
+                self._nb_msg_handler(msg.json())
+            print('Notebook disconnected:', ws)
+            self._notebooks.remove(ws)
+            return ws
         try:
             text = (self._root/'static'/request.path[1:]).read_text()
         except FileNotFoundError:
             raise web.HTTPNotFound()
         return self._get_response(text)
 
-    async def run(self, ws_port: int) -> None:
-        self._ws_port = ws_port
+    async def run(self) -> None:
         server = web.Server(self.handler)
         loop = asyncio.get_event_loop()
         for port in range(8080, 8100):
@@ -65,24 +92,4 @@ class WebServer:
         print(f'Started web server on port {port}')
         if self._browser:
             self._browser.open(f'http://localhost:{port}')
-
-
-class WSServer:
-    def __init__(self, handler: Callable[[WebSocket], Awaitable]) -> None:
-        self.handler = handler
-
-    async def _handler(self, ws: WebSocket, path: str) -> None:
-        await self.handler(ws)
-
-    async def run(self) -> int:
-        for port in range(6060, 6080):
-            try:
-                await websockets.serve(self._handler, 'localhost', port)
-            except OSError:
-                pass
-            else:
-                break
-        else:
-            raise RuntimeError('Cannot find an available port')
-        print(f'Started websocket server on port {port}')
-        return port
+        await self._broadcaster()

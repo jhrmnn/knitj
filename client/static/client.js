@@ -17,7 +17,7 @@ function elemFromHtml(html) {
   return el.childNodes[0];
 }
 
-const ws = new WebSocket(`ws://localhost:${document.currentScript.getAttribute('ws-port')}`);
+const ws = new WebSocket(`ws://${document.location.host}/ws`);
 
 function send(msg) {
   ws.send(JSON.stringify(msg));
