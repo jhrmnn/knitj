@@ -57,5 +57,7 @@ Array.from(document.getElementsByClassName('text-cell')).forEach((cell) => {
   renderMath(cell);
 });
 </script>
-{% if client %}<script src="client.js"></script>{% endif %}
+{% if ws_port %}
+<script src="client.js" ws-port="{{ ws_port }}"></script>
+{% endif %}
 </body>

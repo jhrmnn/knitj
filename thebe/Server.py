@@ -13,7 +13,7 @@ from pygments.formatters import HtmlFormatter
 from jinja2 import Template
 import websockets
 
-from typing import Callable, Awaitable
+from typing import Callable, Awaitable, Optional  # noqa
 
 WebSocket = websockets.WebSocketServerProtocol
 
@@ -24,11 +24,12 @@ class WebServer:
         self.get_html = get_html
         self._root = Path(__file__).parents[1]/'client'
         self._browser = browser
+        self._ws_port: Optional[int] = None
 
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
 
-    def get_index(self, cells: str = None, client: bool = False) -> str:
+    def get_index(self, cells: str = None) -> str:
         template = Template((self._root/'templates/index.html').read_text())
         return template.render(
             cells=cells or self.get_html(),
@@ -36,19 +37,20 @@ class WebServer:
                 [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
                 map(str, ansi2html.style.get_styles())
             )),
-            client=client,
+            ws_port=self._ws_port,
         )
 
     async def handler(self, request: web.BaseRequest) -> web.Response:
         if request.path == '/':
-            return self._get_response(self.get_index(client=True))
+            return self._get_response(self.get_index())
         try:
             text = (self._root/'static'/request.path[1:]).read_text()
         except FileNotFoundError:
             raise web.HTTPNotFound()
         return self._get_response(text)
 
-    async def run(self) -> None:
+    async def run(self, ws_port: int) -> None:
+        self._ws_port = ws_port
         server = web.Server(self.handler)
         loop = asyncio.get_event_loop()
         for port in range(8080, 8100):
@@ -72,7 +74,7 @@ class WSServer:
     async def _handler(self, ws: WebSocket, path: str) -> None:
         await self.handler(ws)
 
-    async def run(self) -> None:
+    async def run(self) -> int:
         for port in range(6060, 6080):
             try:
                 await websockets.serve(self._handler, 'localhost', port)
@@ -83,3 +85,4 @@ class WSServer:
         else:
             raise RuntimeError('Cannot find an available port')
         print(f'Started websocket server on port {port}')
+        return port

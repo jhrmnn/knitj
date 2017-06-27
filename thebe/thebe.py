@@ -164,11 +164,11 @@ class Thebe:
         raise AllProcessed
 
     async def run(self) -> None:
+        ws_port = await WSServer(self._nb_handler).run()
         await asyncio.gather(
             self._kernel.run(),
-            self._webserver.run(),
+            self._webserver.run(ws_port),
             Source(self._source_handler, self.source).run(),
-            WSServer(self._nb_handler).run(),
         )
 
     async def static(self) -> None:
