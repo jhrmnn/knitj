@@ -28,19 +28,20 @@ class WebServer:
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
 
-    def get_index(self, cells: str = None) -> str:
+    def get_index(self, cells: str = None, client: bool = False) -> str:
         template = Template((self._root/'templates/index.html').read_text())
         return template.render(
             cells=cells or self.get_html(),
             styles='\n'.join(chain(
                 [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
                 map(str, ansi2html.style.get_styles())
-            ))
+            )),
+            client=client,
         )
 
     async def handler(self, request: web.BaseRequest) -> web.Response:
         if request.path == '/':
-            return self._get_response(self.get_index())
+            return self._get_response(self.get_index(client=True))
         try:
             text = (self._root/'static'/request.path[1:]).read_text()
         except FileNotFoundError:
