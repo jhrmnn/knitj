@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 setup(
@@ -8,7 +8,7 @@ setup(
     author='Jan Hermann',
     author_email='dev@hermann.in',
     url='https://github.com/azag0/thebe',
-    packages=['thebe'],
+    packages=find_packages(),
     scripts=['scripts/thebe'],
     classifiers=[
         'Development Status :: 3 - Alpha',
