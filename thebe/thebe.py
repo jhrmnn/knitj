@@ -92,9 +92,13 @@ class Thebe:
                 cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
             elif isinstance(msg.content, jupy.content.OK):
                 cell.set_done()
+        elif isinstance(msg, jupy.ERROR):
+            html = _ansi_convert(
+                '\n'.join(msg.content.traceback), full=False
+            )
+            cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
         elif isinstance(msg, (jupy.STATUS,
-                              jupy.EXECUTE_INPUT,
-                              jupy.ERROR)):
+                              jupy.EXECUTE_INPUT)):
             return
         else:
             assert False

@@ -35,7 +35,7 @@ _msg_colors = {
     MsgType.STREAM: 'pink',
     MsgType.EXECUTE_INPUT: 'red',
     MsgType.EXECUTE_RESULT: 'cyan',
-    MsgType.ERROR: 'normal',
+    MsgType.ERROR: 'red',
     MsgType.STATUS: 'green',
     MsgType.SHUTDOWN_REPLY: 'red',
 }
