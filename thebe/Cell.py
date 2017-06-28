@@ -5,6 +5,7 @@ import hashlib
 import html
 from abc import ABCMeta, abstractmethod
 import asyncio
+import json
 
 from misaka import Markdown, HtmlRenderer
 import pygments
@@ -59,11 +60,21 @@ class TextCell(BaseCell):
 class CodeCell(BaseCell):
     def __init__(self, code: str) -> None:
         super().__init__()
+        self.hashid = Hash(_get_hash(code) + '-code')
+        if code.startswith('#::'):
+            modeline, code = code[3:].split('\n', 1)
+            try:
+                opts = json.loads(modeline)
+            except json.decoder.JSONDecodeError as e:
+                print(e)
+                opts = {}
+        else:
+            opts = {}
         self.code = code
         self._output: Optional[Dict[MIME, str]] = None
         self._stream = ''
-        self.hashid = Hash(_get_hash(code) + '-code')
         self._done = asyncio.get_event_loop().create_future()
+        self._hide = opts.get('hide', False)
 
     def __repr__(self) -> str:
         return (
