@@ -5,7 +5,7 @@ import hashlib
 import html
 from abc import ABCMeta, abstractmethod
 import asyncio
-import json
+import re
 
 from misaka import Markdown, HtmlRenderer
 import pygments
@@ -14,7 +14,7 @@ from pygments.lexers import PythonLexer
 
 from .jupyter_messaging.content import MIME
 
-from typing import Dict, NewType, Optional  # noqa
+from typing import Dict, NewType, Optional, Set  # noqa
 
 Hash = NewType('Hash', str)
 
@@ -56,31 +56,45 @@ class TextCell(BaseCell):
     def _to_html(self) -> str:
         return f'<div class="{self.hashid} text-cell">{_md(self.content)}</div>'
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BaseCell):
+            return NotImplemented  # type: ignore
+        return type(self) is type(other) and self.hashid == other.hashid
+
 
 class CodeCell(BaseCell):
     def __init__(self, code: str) -> None:
         super().__init__()
         if code.startswith('#::'):
             modeline, code = code[3:].split('\n', 1)
-            try:
-                opts = json.loads(modeline)
-            except json.decoder.JSONDecodeError as e:
-                print(e)
-                opts = {}
+            modeline = re.sub(r'[^a-z]', '', modeline)
+            self.flags = set(modeline.split())
         else:
-            opts = {}
+            self.flags = set()
         self.code = code
         self.hashid = Hash(_get_hash(code) + '-code')
         self._output: Optional[Dict[MIME, str]] = None
         self._stream = ''
         self._done = asyncio.get_event_loop().create_future()
-        self._hide = opts.get('hide', False)
+        self._flags: Set[str] = set()
 
     def __repr__(self) -> str:
         return (
             f'<CodeCell hashid={self.hashid!r} code={self.code!r} '
             f'output={self._output!r}>'
         )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, CodeCell):
+            return NotImplemented  # type: ignore
+        return super().__eq__(other) and self.flags == other.flags
+
+    def update_flags(self, other: 'CodeCell') -> bool:
+        update = self.flags != other.flags
+        if update:
+            self.flags = other.flags.copy()
+            self._html = None
+        return update
 
     def append_stream(self, s: str) -> None:
         self._stream += s
@@ -94,9 +108,13 @@ class CodeCell(BaseCell):
         self._output = None
         self._stream = ''
         self._html = None
+        self._flags.discard('done')
         self._done = asyncio.get_event_loop().create_future()
 
     def set_done(self) -> None:
+        self._flags.discard('evaluating')
+        self._flags.add('done')
+        self._html = None
         self._done.set_result(None)
 
     def done(self) -> bool:
@@ -114,11 +132,14 @@ class CodeCell(BaseCell):
         elif MIME.TEXT_HTML in self._output:
             output = self._output[MIME.TEXT_HTML]
         elif MIME.TEXT_PLAIN in self._output:
-            output = f'<pre>{html.escape(self._output[MIME.TEXT_PLAIN])}</pre>'
+            output = '<pre>' + html.escape(self._output[MIME.TEXT_PLAIN]) + '</pre>'
         else:
             assert False
         if self._stream:
-            output = f'<pre>{self._stream}</pre>{output}'
-        content = f'<div class="code">{code}</div><div class="output">{output}</div>'
+            output = '<pre>' + self._stream + '</pre>' + output
+        content = '<div class="code">' + code + '</div>' + \
+            '<div class="output">' + output + '</div>'
         classes = [self.hashid, 'code-cell']
+        classes.extend(self.flags)
+        classes.extend(self._flags)
         return f'<div class="{" ".join(classes)}">{content}</div>'

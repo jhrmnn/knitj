@@ -74,20 +74,19 @@ ws.onmessage = ({ data }) => {
   } else if (msg.kind === 'document') {
     const cellsEl = h('div', (div) => { div.id = 'cells'; });
     msg.hashids.forEach((hashid) => {
-      let cell = document.getElementsByClassName(hashid)[0];
-      if (!cell) {
-        const origCell = cellsEl.getElementsByClassName(hashid)[0];
-        if (origCell) {
-          cell = origCell.cloneNode(true);
-        }
-      }
-      if (!cell) {
-        cell = elemFromHtml(msg.htmls[hashid]);
+      const html = msg.htmls[hashid];
+      let cell;
+      if (html) {
+        cell = elemFromHtml(html);
         if (cell.classList.contains('code-cell')) {
           appendReevaluate(cell);
-          cell.classList.add('evaluating');
         } else if (cell.classList.contains('text-cell')) {
           renderMath(cell);
+        }
+      } else {
+        cell = document.getElementsByClassName(hashid)[0];
+        if (!cell) {
+          cell = cellsEl.getElementsByClassName(hashid)[0].cloneNode(true);
         }
       }
       cellsEl.appendChild(cell);
@@ -100,6 +99,6 @@ Array.from(document.getElementsByClassName('code-cell')).forEach((cell) => {
   appendReevaluate(cell);
 });
 document.body.insertBefore(h('button', (button) => {
-    button.onclick = () => { send({ kind: 'restart_kernel' }) };
-    button.textContent = 'Restart kernel';
-  }), document.body.firstChild);
+  button.onclick = () => { send({ kind: 'restart_kernel' }); };
+  button.textContent = 'Restart kernel';
+}), document.body.firstChild);

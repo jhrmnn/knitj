@@ -52,6 +52,10 @@ class Thebe:
                 cell.set_output({
                     MIME.TEXT_HTML: str(cell_tag.find(class_='output'))
                 })
+                if 'done' in cell_tag.attrs['class']:
+                    cell.set_done()
+                if 'hide' in cell_tag.attrs['class']:
+                    cell.flags.add('hide')
 
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
@@ -119,20 +123,35 @@ class Thebe:
 
     def _source_handler(self, src: str) -> None:
         cells = Parser().parse(src)
-        new_cells = [cell for cell in cells if cell.hashid not in self._cells]
-        self.log(f'File change: {len(new_cells)}/{len(cells)} cells changed')
+        new_cells = []
+        updated_cells: List[BaseCell] = []
+        for cell in cells:
+            if cell.hashid in self._cells:
+                old_cell = self._cells[cell.hashid]
+                if isinstance(old_cell, CodeCell):
+                    assert isinstance(cell, CodeCell)
+                    if old_cell.update_flags(cell):
+                        updated_cells.append(old_cell)
+            else:
+                if isinstance(cell, CodeCell):
+                    cell._flags.add('evaluating')
+                new_cells.append(cell)
+        self.log(
+            f'File change: {len(new_cells)}/{len(cells)} new cells, '
+            f'{len(updated_cells)}/{len(cells)} updated cells'
+        )
         self._cell_order = [cell.hashid for cell in cells]
         self._cells = {
             cell.hashid: self._cells.get(cell.hashid, cell) for cell in cells
         }
-        for cell in new_cells:
-            if isinstance(cell, CodeCell):
-                self._kernel.execute(cell.hashid, cell.code)
         self._broadcast(dict(
             kind='document',
             hashids=self._cell_order,
-            htmls={cell.hashid: cell.html for cell in new_cells},
+            htmls={cell.hashid: cell.html for cell in new_cells + updated_cells},
         ))
+        for cell in new_cells:
+            if isinstance(cell, CodeCell):
+                self._kernel.execute(cell.hashid, cell.code)
 
     def _save_report(self) -> None:
         if self.report:

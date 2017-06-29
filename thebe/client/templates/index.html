@@ -44,6 +44,8 @@
     }
     .output thead { border-bottom: 1px solid black; }
     .output:empty, .code:empty { display: none; }
+    .hide.done .code { display: none; }
+    .code-cell:not(.done) .code { background-color: #e7ffe5; }
     .evaluating .code { background-color: #ffeded; }
     {{ styles }}
     .katex { font-size: 1em !important; }
