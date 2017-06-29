@@ -10,11 +10,15 @@ import asyncio
 def parse_cli() -> dict:
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg('source', metavar='FILE')
-    arg('report', metavar='REPORT', nargs='?')
-    arg('-b', '--browser', type=webbrowser.get, default=webbrowser.get())
-    arg('-n', '--no-browser', dest='browser', action='store_false')
-    arg('-s', '--static', action='store_true')
+    arg('source', metavar='FILE', help='source file in Markdown format')
+    arg('report', metavar='REPORT', nargs='?', help='rendered HTML file')
+    arg('-b', '--browser', type=webbrowser.get, default=webbrowser.get(),
+        help='browser to open')
+    arg('-n', '--no-browser', dest='browser', action='store_false',
+        help='do not open a browser')
+    arg('-s', '--static', action='store_true', help=(
+        'do not watch file for changes, render only once'
+    ))
     return vars(parser.parse_args())
 
 
