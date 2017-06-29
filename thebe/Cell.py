@@ -60,7 +60,6 @@ class TextCell(BaseCell):
 class CodeCell(BaseCell):
     def __init__(self, code: str) -> None:
         super().__init__()
-        self.hashid = Hash(_get_hash(code) + '-code')
         if code.startswith('#::'):
             modeline, code = code[3:].split('\n', 1)
             try:
@@ -71,6 +70,7 @@ class CodeCell(BaseCell):
         else:
             opts = {}
         self.code = code
+        self.hashid = Hash(_get_hash(code) + '-code')
         self._output: Optional[Dict[MIME, str]] = None
         self._stream = ''
         self._done = asyncio.get_event_loop().create_future()
@@ -90,14 +90,17 @@ class CodeCell(BaseCell):
         self._output = output
         self._html = None
 
-    def reset_output(self) -> None:
+    def reset(self) -> None:
         self._output = None
-        self._html = None
         self._stream = ''
+        self._html = None
+        self._done = asyncio.get_event_loop().create_future()
 
     def set_done(self) -> None:
-        if not self._done.done():
-            self._done.set_result(None)
+        self._done.set_result(None)
+
+    def done(self) -> bool:
+        return self._done.done()
 
     async def wait_for(self) -> None:
         await self._done
@@ -117,4 +120,5 @@ class CodeCell(BaseCell):
         if self._stream:
             output = f'<pre>{self._stream}</pre>{output}'
         content = f'<div class="code">{code}</div><div class="output">{output}</div>'
-        return f'<div class="{self.hashid} code-cell">{content}</div>'
+        classes = [self.hashid, 'code-cell']
+        return f'<div class="{" ".join(classes)}">{content}</div>'

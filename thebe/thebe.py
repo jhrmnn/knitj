@@ -59,7 +59,7 @@ class Thebe:
             hashid = msg['hashid']
             cell = self._cells[hashid]
             assert isinstance(cell, CodeCell)
-            cell.reset_output()
+            cell.reset()
             self._kernel.execute(hashid, cell.code)
         elif msg['kind'] == 'restart_kernel':
             self.log('Restarting kernel')
