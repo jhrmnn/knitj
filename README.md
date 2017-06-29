@@ -2,7 +2,7 @@
 
 [Thebe](https://en.wikipedia.org/wiki/Thebe_(moon)) (/ˈθiːbiː/ THEE-bee) is a moon of Jupiter. It is also an alternative front-end to the IPython [Jupyter kernel](https://github.com/jupyter/jupyter/wiki/Jupyter-kernels).
 
-Thebe dynamically renders regular Markdown into HTML and evaluates Python code cells in an IPython kernel. The source Markdown file is watched for changes, and any changed code cells are reevaluated and propagated to the browser via WebSocket.
+Inspired by [R Markdown](http://rmarkdown.rstudio.com), Thebe dynamically renders regular Markdown into HTML and evaluates Python code cells in an IPython kernel. The source Markdown file is watched for changes, and any changed code cells are reevaluated and propagated to the browser via WebSocket.
 
 The following markdown snippet,
 
