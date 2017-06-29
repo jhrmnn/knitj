@@ -64,11 +64,11 @@ class Server:
             ws = web.WebSocketResponse(autoclose=False)
             request.app = App()  # type: ignore
             await ws.prepare(request)
-            print('Got client:', ws)
+            print('Notebook connected:', id(ws))
             self._notebooks.add(ws)
             async for msg in ws:
                 self._nb_msg_handler(msg.json())
-            print('Notebook disconnected:', ws)
+            print('Notebook disconnected:', id(ws))
             self._notebooks.remove(ws)
             return ws
         try:

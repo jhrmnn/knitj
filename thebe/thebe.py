@@ -18,7 +18,7 @@ from .Cell import CodeCell
 from . import jupyter_messaging as jupy
 from .jupyter_messaging.content import MIME
 
-from typing import Set, Dict, List, Optional  # noqa
+from typing import Set, Dict, List, Optional, Any  # noqa
 from .Cell import BaseCell, Hash  # noqa
 
 _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
@@ -55,44 +55,53 @@ class Thebe:
 
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
+            self.log('Will reevaluate a cell')
             hashid = msg['hashid']
             cell = self._cells[hashid]
             assert isinstance(cell, CodeCell)
             cell.reset_output()
             self._kernel.execute(hashid, cell.code)
         elif msg['kind'] == 'restart_kernel':
+            self.log('Restarting kernel')
             self._kernel.restart()
         elif msg['kind'] == 'ping':
             pass
         else:
             raise ValueError(f'Unkonwn message: {msg["kind"]}')
 
+    def log(self, o: Any) -> None:
+        if not self.quiet:
+            print(o)
+
     def _broadcast(self, msg: Dict) -> None:
         self._server.broadcast(msg)
         self._save_report()
 
     def _kernel_handler(self, msg: jupy.Message, hashid: Optional[Hash]) -> None:
-        if not self.quiet:
-            print(msg)
         if not hashid:
             return
         cell = self._cells[hashid]
         assert isinstance(cell, CodeCell)
         if isinstance(msg, jupy.EXECUTE_RESULT):
+            self.log('Got an execution result')
             cell.set_output(msg.content.data)
         elif isinstance(msg, jupy.STREAM):
             cell.append_stream(msg.content.text)
         elif isinstance(msg, jupy.DISPLAY_DATA):
+            self.log('Got a picture')
             cell.set_output(msg.content.data)
         elif isinstance(msg, jupy.EXECUTE_REPLY):
             if isinstance(msg.content, jupy.content.ERROR):
+                self.log('Got an error execution reply')
                 html = _ansi_convert(
                     '\n'.join(msg.content.traceback), full=False
                 )
                 cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
             elif isinstance(msg.content, jupy.content.OK):
+                self.log('Got an execution reply')
                 cell.set_done()
         elif isinstance(msg, jupy.ERROR):
+            self.log('Got an error')
             html = _ansi_convert(
                 '\n'.join(msg.content.traceback), full=False
             )
@@ -111,6 +120,7 @@ class Thebe:
     def _source_handler(self, src: str) -> None:
         cells = Parser().parse(src)
         new_cells = [cell for cell in cells if cell.hashid not in self._cells]
+        self.log(f'File change: {len(new_cells)}/{len(cells)} cells changed')
         self._cell_order = [cell.hashid for cell in cells]
         self._cells = {
             cell.hashid: self._cells.get(cell.hashid, cell) for cell in cells
