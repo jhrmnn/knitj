@@ -65,8 +65,9 @@ class TextCell(BaseCell):
 class CodeCell(BaseCell):
     def __init__(self, code: str) -> None:
         super().__init__()
-        if code.startswith('#::'):
-            modeline, code = code[3:].split('\n', 1)
+        m = re.match(r'#\s*::', code)
+        if m:
+            modeline, code = code[m.end():].split('\n', 1)
             modeline = re.sub(r'[^a-z]', '', modeline)
             self.flags = set(modeline.split())
         else:

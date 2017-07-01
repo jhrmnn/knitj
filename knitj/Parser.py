@@ -56,15 +56,15 @@ class Parser:
         cells: List[BaseCell] = []
         buffer = ''
         while text:
-            m = re.search(r'((?<=\n)|^)#>>|$', text)
+            m = re.search(r'((?<=\n)|^)#\s*::>|$', text)
             buffer += text[:m.start()]
             buffer = buffer.strip()
             if buffer:
-                buffer = re.sub(r'((?<=\n)|^)#%%', '%', buffer)
+                buffer = re.sub(r'((?<=\n)|^)#\s*::%', '%', buffer)
                 cells.append(CodeCell(buffer))
                 buffer = ''
             text = text[m.end():]
-            if m.group(0) == '#>>':
+            if m.group(0):
                 m = re.search(r'(?<=\n)[^#]|$', text)
                 if not m:
                     raise ParsingError('Unclosed Markdown cell')
