@@ -137,7 +137,7 @@ class CodeCell(BaseCell):
         else:
             assert False
         if self._stream:
-            output = '<pre>' + self._stream + '</pre>' + output
+            output = '<pre>' + html.escape(self._stream) + '</pre>' + output
         content = '<div class="code">' + code + '</div>' + \
             '<div class="output">' + output + '</div>'
         classes = [self.hashid, 'code-cell']
