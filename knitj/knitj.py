@@ -33,8 +33,9 @@ class KnitJ:
         self.quiet = quiet
         self._kernel = Kernel(self._kernel_handler)
         self._server = Server(self._get_html, self._nb_msg_handler, browser=browser)
+        self._parser = Parser('python' if self.source.suffix == '.py' else 'markdown')
         if self.source.exists():
-            cells = Parser().parse(self.source.read_text())
+            cells = self._parser.parse(self.source.read_text())
         else:
             cells = []
         self._cell_order = [cell.hashid for cell in cells]
@@ -122,7 +123,7 @@ class KnitJ:
         ))
 
     def _source_handler(self, src: str) -> None:
-        cells = Parser().parse(src)
+        cells = self._parser.parse(src)
         new_cells = []
         updated_cells: List[BaseCell] = []
         for cell in cells:

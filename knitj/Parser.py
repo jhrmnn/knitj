@@ -13,7 +13,17 @@ class ParsingError(Exception):
 
 
 class Parser:
+    def __init__(self, fmt: str = 'markdown') -> None:
+        self.fmt = fmt
+
     def parse(self, text: str) -> List[BaseCell]:
+        if self.fmt == 'markdown':
+            return self.parse_markdown(text)
+        if self.fmt == 'python':
+            return self.parse_python(text)
+        assert False
+
+    def parse_markdown(self, text: str) -> List[BaseCell]:
         text = text.rstrip()
         cells: List[BaseCell] = []
         buffer = ''
@@ -39,4 +49,27 @@ class Parser:
                     raise ParsingError('Unclosed HTML comment')
                 buffer += text[:m.end()]
                 text = text[m.end():]
+        return cells
+
+    def parse_python(self, text: str) -> List[BaseCell]:
+        text = text.rstrip()
+        cells: List[BaseCell] = []
+        buffer = ''
+        while text:
+            m = re.search(r'((?<=\n)|^)#>>|$', text)
+            buffer += text[:m.start()]
+            buffer = buffer.strip()
+            if buffer:
+                buffer = re.sub(r'((?<=\n)|^)#%%', '%', buffer)
+                cells.append(CodeCell(buffer))
+                buffer = ''
+            text = text[m.end():]
+            if m.group(0) == '#>>':
+                m = re.search(r'(?<=\n)[^#]|$', text)
+                if not m:
+                    raise ParsingError('Unclosed Markdown cell')
+                md = text[:m.start()].strip()
+                md = re.sub(r'((?<=\n)|^)# ?', '', md)
+                cells.append(TextCell(md))
+                text = text[m.start():]
         return cells
