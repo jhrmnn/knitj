@@ -24,11 +24,11 @@ def parse_cli() -> dict:
 
 def main() -> None:
     kwargs = parse_cli()
-    from thebe import Thebe
+    from knitj import KnitJ
     if kwargs.pop('static'):
-        task = asyncio.ensure_future(Thebe(**kwargs, quiet=True).static())  # type: ignore
+        task = asyncio.ensure_future(KnitJ(**kwargs, quiet=True).static())  # type: ignore
     else:
-        task = asyncio.ensure_future(Thebe(**kwargs).run())
+        task = asyncio.ensure_future(KnitJ(**kwargs).run())
     try:
         asyncio.get_event_loop().run_until_complete(task)
     except KeyboardInterrupt:

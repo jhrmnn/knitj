@@ -1,8 +1,6 @@
-# Thebe
+# KnitJ — Evaluate Markdown in Jupyter kernels
 
-[Thebe](https://en.wikipedia.org/wiki/Thebe_(moon)) (/ˈθiːbiː/ THEE-bee) is a moon of Jupiter. It is also an alternative front-end to the IPython [Jupyter kernel](https://github.com/jupyter/jupyter/wiki/Jupyter-kernels).
-
-Inspired by [R Markdown](http://rmarkdown.rstudio.com), Thebe dynamically renders regular Markdown into HTML and evaluates Python code cells in an IPython kernel. The source Markdown file is watched for changes, and any changed code cells are reevaluated and propagated to the browser via WebSocket.
+Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), KnitJ dynamically renders regular Markdown into HTML and evaluates Python code cells in an IPython kernel. The source Markdown file is watched for changes, and any changed code cells are reevaluated and propagated to the browser via WebSocket.
 
 The following markdown snippet,
 
@@ -40,7 +38,7 @@ Jupyter notebooks mix source code and generated output, which has two disadvanta
 ## Installation
 
 ```
-pip3 install git+https://github.com/azag0/thebe.git
+pip3 install git+https://github.com/azag0/knitj.git
 ```
 
 The following dependencies are installed:
@@ -58,11 +56,11 @@ The following dependencies are installed:
 ## Usage
 
 ```
-thebe source.md
+knitj source.md
 ```
 
-This command starts watching `source.md` for changes, and opens a browser window with the rendered HTML. No Python is evaluated at this point. To evaluate the whole source file, click on `Evaluate from here` of the top code cell. `source.html` is automatically created, and all changes displayed in the browser are also saved there. When restarting Thebe, all previous output is reused from `source.html` if it exists.
+This command starts watching `source.md` for changes, and opens a browser window with the rendered HTML. No Python is evaluated at this point. To evaluate the whole source file, click on `Evaluate from here` of the top code cell. `source.html` is automatically created, and all changes displayed in the browser are also saved there. When restarting , all previous output is reused from `source.html` if it exists.
 
-`source.md` can now be edited with any editor. On saving, Thebe reads it, and sends any changed code cells to the IPython kernel for evaluation. (Markdown changes are also propagated.)
+`source.md` can now be edited with any editor. On saving, KnitJ reads it, and sends any changed code cells to the IPython kernel for evaluation. (Markdown changes are also propagated.)
 
-See `thebe -h` for all options.
+See `knitj -h` for all options.

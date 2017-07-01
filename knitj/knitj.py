@@ -24,7 +24,7 @@ from .Cell import BaseCell, Hash  # noqa
 _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
 
-class Thebe:
+class KnitJ:
     def __init__(self, source: os.PathLike, report: os.PathLike = None,
                  browser: webbrowser.BaseBrowser = None, quiet: bool = False) -> None:
         self.source = Path(source)

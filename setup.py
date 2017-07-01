@@ -2,15 +2,15 @@ from setuptools import setup, find_packages
 
 
 setup(
-    name='thebe',
+    name='knitj',
     version='0.1',
     description='Alternative Jupyter front-end',
     author='Jan Hermann',
     author_email='dev@hermann.in',
-    url='https://github.com/azag0/thebe',
+    url='https://github.com/azag0/knitj',
     packages=find_packages(),
-    scripts=['scripts/thebe'],
-    package_data={'thebe': [
+    scripts=['scripts/knitj'],
+    package_data={'knitj': [
         'client/static/*',
         'client/templates/*',
     ]},
