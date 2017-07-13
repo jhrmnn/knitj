@@ -32,6 +32,7 @@
         border-collapse: collapse;
         font-family: sans-serif;
         font-size: 0.83em;
+        white-space: nowrap;
     }
     .output table, th, td { border: none; }
     .output th, td {
@@ -46,7 +47,7 @@
     .output:empty, .code:empty { display: none; }
     .hide.done .code { display: none; }
     .code-cell:not(.done) .code { background-color: #e7ffe5; }
-    .evaluating .code { background-color: #ffeded; }
+    .evaluating .code { background-color: #ffeded !important; }
     {{ styles }}
     .katex { font-size: 1em !important; }
 </style>
