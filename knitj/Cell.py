@@ -125,7 +125,8 @@ class CodeCell(BaseCell):
         self._flags.discard('evaluating')
         self._flags.add('done')
         self._html = None
-        self._done.set_result(None)
+        if not self.done():
+            self._done.set_result(None)
 
     def done(self) -> bool:
         return self._done.done()

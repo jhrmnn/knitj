@@ -85,7 +85,11 @@ class KnitJ:
     def _kernel_handler(self, msg: jupy.Message, hashid: Optional[Hash]) -> None:
         if not hashid:
             return
-        cell = self._cells[hashid]
+        try:
+            cell = self._cells[hashid]
+        except KeyError:
+            self.log('Cell does not exist anymore')
+            return
         assert isinstance(cell, CodeCell)
         if isinstance(msg, jupy.EXECUTE_RESULT):
             self.log('Got an execution result')
