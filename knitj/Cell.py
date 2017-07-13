@@ -78,6 +78,7 @@ class CodeCell(BaseCell):
         self.code = code
         self.hashid = Hash(_get_hash(code) + '-code')
         self._output: Optional[Dict[MIME, str]] = None
+        self._error: Optional[str] = None
         self._stream = ''
         self._done = asyncio.get_event_loop().create_future()
         self._flags: Set[str] = set()
@@ -108,8 +109,13 @@ class CodeCell(BaseCell):
         self._output = output
         self._html = None
 
+    def set_error(self, error: str) -> None:
+        self._error = error
+        self._html = None
+
     def reset(self) -> None:
         self._output = None
+        self._error = None
         self._stream = ''
         self._html = None
         self._flags.discard('done')
@@ -139,6 +145,8 @@ class CodeCell(BaseCell):
             output = '<pre>' + html.escape(self._output[MIME.TEXT_PLAIN]) + '</pre>'
         else:
             assert False
+        if self._error:
+            output = '<pre>' + self._error + '</pre>' + output
         if self._stream:
             output = '<pre>' + html.escape(self._stream) + '</pre>' + output
         content = '<div class="code">' + code + '</div>' + \

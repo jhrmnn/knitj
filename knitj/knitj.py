@@ -101,7 +101,7 @@ class KnitJ:
                 html = _ansi_convert(
                     '\n'.join(msg.content.traceback), full=False
                 )
-                cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
+                cell.set_error(html)
             elif isinstance(msg.content, jupy.content.OK):
                 self.log('Got an execution reply')
                 cell.set_done()
@@ -110,7 +110,7 @@ class KnitJ:
             html = _ansi_convert(
                 '\n'.join(msg.content.traceback), full=False
             )
-            cell.set_output({MIME.TEXT_HTML: f'<pre>{html}</pre>'})
+            cell.set_error(html)
         elif isinstance(msg, (jupy.STATUS,
                               jupy.EXECUTE_INPUT)):
             return
