@@ -19,6 +19,7 @@ class MIME(Enum):
     TEXT_PLAIN = 'text/plain'
     TEXT_HTML = 'text/html'
     IMAGE_PNG = 'image/png'
+    IMAGE_SVG_XML = 'image/svg+xml'
 
 
 class ExecutionState(Enum):

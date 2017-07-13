@@ -137,6 +137,9 @@ class CodeCell(BaseCell):
         code = pygments.highlight(self.code, PythonLexer(), HtmlFormatter())
         if self._output is None:
             output = ''
+        elif MIME.IMAGE_SVG_XML in self._output:
+            m = re.search(r'<svg', self._output[MIME.IMAGE_SVG_XML])
+            output = self._output[MIME.IMAGE_SVG_XML][m.start():]
         elif MIME.IMAGE_PNG in self._output:
             output = f'<img src="data:image/png;base64,{self._output[MIME.IMAGE_PNG]}">'
         elif MIME.TEXT_HTML in self._output:
