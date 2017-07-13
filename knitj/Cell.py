@@ -67,7 +67,10 @@ class CodeCell(BaseCell):
         super().__init__()
         m = re.match(r'#\s*::', code)
         if m:
-            modeline, code = code[m.end():].split('\n', 1)
+            try:
+                modeline, code = code[m.end():].split('\n', 1)
+            except ValueError:
+                modeline, code = code, ''
             modeline = re.sub(r'[^a-z]', '', modeline)
             self.flags = set(modeline.split())
         else:
