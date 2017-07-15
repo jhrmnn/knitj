@@ -20,7 +20,7 @@ Hash = NewType('Hash', str)
 
 _md = Markdown(
     HtmlRenderer(),
-    extensions='fenced-code math math_explicit tables quote'.split()
+    extensions='fenced-code math math-explicit tables quote'.split()
 )
 
 

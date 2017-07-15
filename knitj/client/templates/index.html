@@ -64,7 +64,7 @@ function renderMath(elem) {
   try {
     renderMathInElement(elem, { delimiters: [
       { left: '\\[', right: '\\]', display: true },
-      { left: '$', right: '$', display: false },
+      { left: '\\(', right: '\\)', display: false },
     ] });
   } catch (e) {
     console.warn(e);
