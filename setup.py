@@ -6,7 +6,7 @@ setup(
     version='0.1',
     description='Alternative Jupyter front-end',
     author='Jan Hermann',
-    author_email='dev@hermann.in',
+    author_email='dev@janhermann.cz',
     url='https://github.com/azag0/knitj',
     packages=find_packages(),
     scripts=['scripts/knitj'],
