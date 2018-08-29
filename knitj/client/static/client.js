@@ -12,9 +12,21 @@ function h(tagName, func) {
 }
 
 function elemFromHtml(html) {
-  const el = document.createElement('div');
-  el.innerHTML = html;
-  return el.childNodes[0];
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const el = div.childNodes[0];
+  Array.from(el.getElementsByTagName('script')).forEach((scr) => {
+    parent = scr.parentElement;
+    scrNew = document.createElement('script');
+    scrNew.textContent = scr.textContent;
+    parent.insertBefore(scrNew, scr);
+    parent.removeChild(scr);
+  });
+  return el
+}
+
+function $(query) {
+  return document.querySelector(query);
 }
 
 const ws = new WebSocket(`ws://${document.location.host}/ws`);

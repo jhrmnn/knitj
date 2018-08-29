@@ -35,7 +35,10 @@ class Source:
         self.path = Path(path)
         self._file_change: 'Queue[str]' = Queue()
         self._observer = Observer()
-        self._observer.schedule(FileChangedHandler(queue=self._file_change), '.')
+        self._observer.schedule(
+            FileChangedHandler(queue=self._file_change),
+            str(self.path.parent)
+        )
 
     async def run(self) -> None:
         self._observer.start()
