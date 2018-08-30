@@ -26,7 +26,8 @@ _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
 class KnitJ:
     def __init__(self, source: os.PathLike, report: os.PathLike = None,
-                 browser: webbrowser.BaseBrowser = None, quiet: bool = False) -> None:
+                 browser: webbrowser.BaseBrowser = None, quiet: bool = False,
+                 kernel: str = None) -> None:
         self.source = Path(source)
         self._report_given = bool(report)
         self.report = Path(report) if report else self.source.with_suffix('.html')

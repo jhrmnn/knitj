@@ -16,12 +16,14 @@ from typing import Dict, Optional, Callable
 
 
 class Kernel:
-    def __init__(self, handler: Callable[[jupy.Message, Optional[Hash]], None]) -> None:
+    def __init__(self, handler: Callable[[jupy.Message, Optional[Hash]], None],
+                 kernel: str = None) -> None:
         self.handler = handler
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[UUID, Hash] = {}
         self._msg_queue: 'Queue[Dict]' = Queue()
         self._started = asyncio.get_event_loop().create_future()
+        self._kernel_name = kernel or 'python3'
 
     async def _receiver(self) -> None:
         while True:
@@ -68,7 +70,7 @@ class Kernel:
         self._hashids[msg_id] = hashid
 
     async def run(self) -> None:
-        self._kernel = jupyter_client.KernelManager(kernel_name='python3')
+        self._kernel = jupyter_client.KernelManager(kernel_name=self._kernel_name)
         try:
             self._kernel.start_kernel()
             self._client = self._kernel.client()

@@ -18,6 +18,7 @@ def parse_cli() -> dict:
     arg('-n', '--no-browser', dest='browser', action='store_false',
         help='do not open a browser')
     arg('-s', '--server', action='store_true', help='run in server mode')
+    arg('-k', '--kernel', dest='kernel', help='Jupyter kernel to use')
     return vars(parser.parse_args())
 
 
