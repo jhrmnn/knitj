@@ -58,7 +58,7 @@ class TextCell(BaseCell):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BaseCell):
-            return NotImplemented  # type: ignore
+            return NotImplemented
         return type(self) is type(other) and self.hashid == other.hashid
 
 
@@ -91,7 +91,7 @@ class CodeCell(BaseCell):
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, CodeCell):
-            return NotImplemented  # type: ignore
+            return NotImplemented
         return super().__eq__(other) and self.flags == other.flags
 
     def update_flags(self, other: 'CodeCell') -> bool:
@@ -140,6 +140,7 @@ class CodeCell(BaseCell):
             output = ''
         elif MIME.IMAGE_SVG_XML in self._output:
             m = re.search(r'<svg', self._output[MIME.IMAGE_SVG_XML])
+            assert m
             output = self._output[MIME.IMAGE_SVG_XML][m.start():]
         elif MIME.IMAGE_PNG in self._output:
             output = f'<img src="data:image/png;base64,{self._output[MIME.IMAGE_PNG]}">'

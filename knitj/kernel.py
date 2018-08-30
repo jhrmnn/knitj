@@ -8,7 +8,7 @@ from asyncio import Queue
 
 import jupyter_client
 
-from .Cell import Hash
+from .cell import Hash
 from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
 
@@ -45,7 +45,7 @@ class Kernel:
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
-            return self._client.get_iopub_msg(timeout=1)  # type: ignore
+            return self._client.get_iopub_msg(timeout=1)
         while True:
             try:
                 dct = await self._loop.run_in_executor(None, partial)
@@ -55,7 +55,7 @@ class Kernel:
 
     async def _shell_receiver(self) -> None:
         def partial() -> Dict:
-            return self._client.get_shell_msg(timeout=1)  # type: ignore
+            return self._client.get_shell_msg(timeout=1)
         while True:
             try:
                 dct = await self._loop.run_in_executor(None, partial)

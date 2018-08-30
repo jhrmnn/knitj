@@ -10,7 +10,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 from typing import Set, Callable  # noqa
-from .Cell import Hash  # noqa
+from .cell import Hash  # noqa
 
 
 class FileChangedHandler(FileSystemEventHandler):

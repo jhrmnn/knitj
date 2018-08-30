@@ -3,7 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import re
 
-from .Cell import BaseCell, TextCell, CodeCell
+from .cell import BaseCell, TextCell, CodeCell
 
 from typing import List
 
@@ -29,6 +29,7 @@ class Parser:
         buffer = ''
         while text:
             m = re.search(r'((?<=\n)|^)```python|<!--|$', text)
+            assert m
             if m.group(0) == '```python' or not m.group(0):
                 buffer += text[:m.start()]
                 buffer = buffer.strip()
@@ -57,6 +58,7 @@ class Parser:
         buffer = ''
         while text:
             m = re.search(r'((?<=\n)|^)#\s*::>|$', text)
+            assert m
             buffer += text[:m.start()]
             buffer = buffer.strip()
             if buffer:

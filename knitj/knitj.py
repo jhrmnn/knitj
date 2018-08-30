@@ -10,16 +10,16 @@ import webbrowser
 import ansi2html
 from bs4 import BeautifulSoup
 
-from .Kernel import Kernel
-from .Source import Source
-from .Server import Server
-from .Parser import Parser
-from .Cell import CodeCell
+from .kernel import Kernel
+from .source import Source
+from .server import Server
+from .parser import Parser
+from .cell import CodeCell
 from . import jupyter_messaging as jupy
 from .jupyter_messaging.content import MIME
 
 from typing import Set, Dict, List, Optional, Any  # noqa
-from .Cell import BaseCell, Hash  # noqa
+from .cell import BaseCell, Hash  # noqa
 
 _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 
@@ -181,7 +181,7 @@ class KnitJ:
                 if isinstance(cell, CodeCell):
                     await cell.wait_for()
                 f.write(cell.html)
-        except:
+        except Exception:
             raise
         else:
             f.write(back)
