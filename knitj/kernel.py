@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import queue
-from pprint import pprint
+from pprint import pformat
 import asyncio
 from asyncio import Queue
 
@@ -17,36 +17,37 @@ from typing import Dict, Optional, Callable
 
 class Kernel:
     def __init__(self, handler: Callable[[jupy.Message, Optional[Hash]], None],
-                 kernel: str = None) -> None:
+                 kernel: str = None, log: Callable[[str], None] = None) -> None:
         self.handler = handler
         self.kernel = kernel or 'python3'
+        self._log = log
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[UUID, Hash] = {}
         self._msg_queue: 'Queue[Dict]' = Queue()
         self._started = asyncio.get_event_loop().create_future()
 
     async def run(self) -> None:
-        print('Starting kernel...')
+        self.log('Starting kernel...')
         self._kernel = jupyter_client.KernelManager(kernel_name=self.kernel)
         self._kernel.start_kernel()
         try:
             self._client = self._kernel.client()
             self._started.set_result(None)
-            print('Kernel started')
+            self.log('Kernel started')
             await asyncio.gather(
                 self._receiver(),
                 self._iopub_receiver(),
                 self._shell_receiver()
             )
         finally:
-            print('Shutting kernel')
-            try:
-                self._client.shutdown()
-            except AttributeError:
-                raise
+            self.shutdown()
+
+    def shutdown(self) -> None:
+        self.log('Shutting kernel')
+        self._kernel.shutdown_kernel()
 
     def restart(self) -> None:
-        print('Restarting kernel')
+        self.log('Restarting kernel')
         self._kernel.restart_kernel()
 
     def execute(self, hashid: Hash, code: str) -> None:
@@ -56,13 +57,17 @@ class Kernel:
     async def wait_for_start(self) -> None:
         await self._started
 
+    def log(self, msg: str) -> None:
+        if self._log:
+            self._log(msg)
+
     async def _receiver(self) -> None:
         while True:
             dct = await self._msg_queue.get()
             try:
                 msg = jupy.parse(dct)
             except (TypeError, ValueError):
-                pprint(dct)
+                self.log(pformat(dct))
                 raise
             if msg.parent_header:
                 hashid: Optional[Hash] = self._hashids.get(msg.parent_header.msg_id)

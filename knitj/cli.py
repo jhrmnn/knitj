@@ -28,14 +28,8 @@ def main() -> None:
     if not server_mode:
         kwargs['quiet'] = True
     app = KnitJ(**kwargs)
-    task = asyncio.ensure_future(app.run() if server_mode else app.static())
     loop = asyncio.get_event_loop()
     try:
-        loop.run_until_complete(task)
+        loop.run_until_complete(app.run() if server_mode else app.static())
     except KeyboardInterrupt:
-        task.cancel()
-        try:
-            loop.run_until_complete(task)
-        except asyncio.CancelledError:
-            all_tasks = asyncio.Task.all_tasks()
-            assert len(all_tasks) == 1 and task in all_tasks
+        loop.run_until_complete(app.cleanup())

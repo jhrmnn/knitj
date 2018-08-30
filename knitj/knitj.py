@@ -18,7 +18,7 @@ from .cell import CodeCell
 from . import jupyter_messaging as jupy
 from .jupyter_messaging.content import MIME
 
-from typing import Set, Dict, List, Optional, Any  # noqa
+from typing import Set, Dict, List, Optional, Any# noqa
 from .cell import BaseCell, Hash  # noqa
 
 _ansi_convert = ansi2html.Ansi2HTMLConverter().convert
@@ -32,9 +32,10 @@ class KnitJ:
         self._report_given = bool(report)
         self.report = Path(report) if report else self.source.with_suffix('.html')
         self.quiet = quiet
-        self._kernel = Kernel(self._kernel_handler)
+        self._kernel = Kernel(self._kernel_handler, kernel, self.log)
         self._server = Server(self._get_html, self._nb_msg_handler, browser=browser)
         self._parser = Parser('python' if self.source.suffix == '.py' else 'markdown')
+        self._runner: Optional[asyncio.Future] = None
         if self.source.exists():
             cells = self._parser.parse(self.source.read_text())
         else:
@@ -60,17 +61,29 @@ class KnitJ:
                     cell.flags.add('hide')
 
     async def run(self) -> None:
-        await asyncio.gather(
+        self._runner = asyncio.gather(
             self._kernel.run(),
             self._server.run(),
             Source(self._source_handler, self.source).run(),
         )
+        await self._runner
 
     async def static(self) -> None:
+        runner = asyncio.ensure_future(self._kernel.run())
+        await self._printer()
+        runner.cancel()
         try:
-            await asyncio.gather(self._kernel.run(), self._printer())
-        except AllProcessed:
-            self._kernel._client.shutdown()
+            await runner
+        except asyncio.CancelledError:
+            pass
+
+    async def cleanup(self) -> None:
+        if self._runner:
+            self._runner.cancel()
+            try:
+                await self._runner
+            except asyncio.CancelledError:
+                pass
 
     def log(self, o: Any) -> None:
         if not self.quiet:
@@ -179,15 +192,7 @@ class KnitJ:
     def _get_html(self) -> str:
         return '\n'.join(self._cells[hashid].html for hashid in self._cell_order)
 
-    async def _printer(self) -> None:
-        index = self._server.get_index('__CELLS__')
-        front, back = index.split('__CELLS__')
-        await self._kernel.wait_for_start()
-        for hashid in self._cell_order:
-            cell = self._cells[hashid]
-            if isinstance(cell, CodeCell):
-                self._kernel.execute(cell.hashid, cell.code)
-        f = self.report.open('w') if self._report_given else sys.stdout
+    async def _write_to_file(self, f, front, back):
         f.write(front)
         try:
             for hashid in self._cell_order:
@@ -199,11 +204,17 @@ class KnitJ:
             raise
         else:
             f.write(back)
-        finally:
-            if self.report:
-                f.close()
-        raise AllProcessed
 
-
-class AllProcessed(Exception):
-    pass
+    async def _printer(self) -> None:
+        index = self._server.get_index('__CELLS__')
+        front, back = index.split('__CELLS__')
+        await self._kernel.wait_for_start()
+        for hashid in self._cell_order:
+            cell = self._cells[hashid]
+            if isinstance(cell, CodeCell):
+                self._kernel.execute(cell.hashid, cell.code)
+        if self._report_given:
+            with self.report.open('w') as f:
+                await self._write_to_file(f, front, back)
+        else:
+            await self._write_to_file(sys.stdout, front, back)
