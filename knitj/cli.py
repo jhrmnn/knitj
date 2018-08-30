@@ -18,18 +18,24 @@ def parse_cli() -> dict:
     arg('-n', '--no-browser', dest='browser', action='store_false',
         help='do not open a browser')
     arg('-s', '--server', action='store_true', help='run in server mode')
-    arg('-k', '--kernel', dest='kernel', help='Jupyter kernel to use')
+    arg('-k', '--kernel', help='Jupyter kernel to use')
     return vars(parser.parse_args())
 
 
 def main() -> None:
     kwargs = parse_cli()
-    if kwargs.pop('server'):
-        task = asyncio.ensure_future(KnitJ(**kwargs).run())
-    else:
-        task = asyncio.ensure_future(KnitJ(**kwargs, quiet=True).static())
+    server_mode = kwargs.pop('server')
+    if not server_mode:
+        kwargs['quiet'] = True
+    app = KnitJ(**kwargs)
+    task = asyncio.ensure_future(app.run() if server_mode else app.static())
+    loop = asyncio.get_event_loop()
     try:
-        asyncio.get_event_loop().run_until_complete(task)
+        loop.run_until_complete(task)
     except KeyboardInterrupt:
         task.cancel()
-        asyncio.get_event_loop().run_forever()
+        try:
+            loop.run_until_complete(task)
+        except asyncio.CancelledError:
+            all_tasks = asyncio.Task.all_tasks()
+            assert len(all_tasks) == 1 and task in all_tasks

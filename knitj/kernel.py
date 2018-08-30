@@ -42,9 +42,6 @@ class Kernel:
     async def wait_for_start(self) -> None:
         await self._started
 
-    def restart(self) -> None:
-        self._kernel.restart_kernel()
-
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
             return self._client.get_iopub_msg(timeout=1)
@@ -72,16 +69,23 @@ class Kernel:
     async def run(self) -> None:
         self._kernel = jupyter_client.KernelManager(kernel_name=self._kernel_name)
         try:
+            print('Starting kernel')
             self._kernel.start_kernel()
             self._client = self._kernel.client()
             self._started.set_result(None)
+            print('Kernel started')
             await asyncio.gather(
                 self._receiver(),
                 self._iopub_receiver(),
                 self._shell_receiver()
             )
         finally:
+            print('Shutting kernel')
             try:
                 self._client.shutdown()
             except AttributeError:
-                pass
+                raise
+
+    def restart(self) -> None:
+        print('rRstarting kernel')
+        self._kernel.restart_kernel()
