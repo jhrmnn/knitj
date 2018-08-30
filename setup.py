@@ -9,7 +9,6 @@ setup(
     author_email='dev@janhermann.cz',
     url='https://github.com/azag0/knitj',
     packages=find_packages(),
-    scripts=['scripts/knitj'],
     package_data={'knitj': [
         'client/static/*',
         'client/templates/*',
@@ -40,4 +39,7 @@ setup(
         'Jinja2',
         'beautifulsoup4',
     ],
+    entry_points={
+        'console_scripts': ['knitj = knitj.cli:main']
+    },
 )

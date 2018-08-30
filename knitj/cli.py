@@ -1,10 +1,11 @@
-#!/usr/bin/env python3
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from argparse import ArgumentParser
 import webbrowser
 import asyncio
+
+from .knitj import KnitJ
 
 
 def parse_cli() -> dict:
@@ -24,7 +25,6 @@ def parse_cli() -> dict:
 
 def main() -> None:
     kwargs = parse_cli()
-    from knitj import KnitJ
     if kwargs.pop('static'):
         task = asyncio.ensure_future(KnitJ(**kwargs, quiet=True).static())  # type: ignore
     else:
@@ -34,7 +34,3 @@ def main() -> None:
     except KeyboardInterrupt:
         task.cancel()
         asyncio.get_event_loop().run_forever()
-
-
-if __name__ == '__main__':
-    main()

@@ -1,5 +1,4 @@
 *.pyc
 *.egg-info
 *.gv
-/thebe/client/node_modules/
 /.mypy_cache/
