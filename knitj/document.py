@@ -4,7 +4,7 @@
 import logging
 from collections import OrderedDict
 
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 import ansi2html
 from bs4 import BeautifulSoup
@@ -75,3 +75,26 @@ class Document:
                     cell.set_done()
                 if 'hide' in cell_tag.attrs['class']:
                     cell.flags.add('hide')
+
+    def load_from_input(self, src: str) -> None:
+        pass
+
+    def update_from_cells(self, cells: List[BaseCell]
+                          ) -> Tuple[List[BaseCell], List[BaseCell]]:
+        new_cells = []
+        updated_cells: List[BaseCell] = []
+        for cell in cells:
+            if cell.hashid in self.cells:
+                old_cell = self.cells[cell.hashid]
+                if isinstance(old_cell, CodeCell):
+                    assert isinstance(cell, CodeCell)
+                    if old_cell.update_flags(cell):
+                        updated_cells.append(old_cell)
+            else:
+                if isinstance(cell, CodeCell):
+                    cell._flags.add('evaluating')
+                new_cells.append(cell)
+        self.cells = OrderedDict(
+            (cell.hashid, self.cells.get(cell.hashid, cell)) for cell in cells
+        )
+        return new_cells, updated_cells

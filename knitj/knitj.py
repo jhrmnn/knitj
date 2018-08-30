@@ -6,7 +6,15 @@ from pathlib import Path
 import asyncio
 import sys
 import webbrowser
-from collections import OrderedDict
+import logging
+from itertools import chain
+# from collections import OrderedDict
+from pkg_resources import resource_string
+
+import ansi2html
+from jinja2 import Template
+from pygments.formatters import HtmlFormatter
+from pygments.styles import get_style_by_name
 
 from .kernel import Kernel
 from .source import Source
@@ -14,20 +22,56 @@ from .server import Server
 from .parser import Parser
 from .cell import CodeCell
 from .document import Document
-from . import jupyter_messaging as jupy
 
 from typing import Set, Dict, List, Optional, Any, IO  # noqa
 from .cell import BaseCell, Hash  # noqa
+from . import jupyter_messaging as jupy
+
+log = logging.getLogger('knitj')
 
 
 # #server
 # def __init__(self, source: os.PathLike, output: os.PathLike,
 #              browser: webbrowser.BaseBrowser = None,
 #              kernel: str = None) -> None:
-#
-# #convert
-# def __init__(self, source: IO[str], output: IO[str],
-#              kernel: str = None) -> None:
+
+
+async def convert(source: IO[str], output: IO[str], fmt: str,
+                  kernel_name: str = None) -> None:
+    parser = Parser(fmt)
+    cells = parser.parse(source.read())
+    document = Document(cells)
+    kernel = Kernel(document.process_message, kernel_name, log.info)
+    runner = asyncio.ensure_future(kernel.run())
+
+    template = Template(resource_string('knitj', 'client/templates/index.html'))
+    index = template.render(
+        cells='__CELLS__',
+        styles='\n'.join(chain(
+            [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
+            map(str, ansi2html.style.get_styles())
+        )),
+        client=False,
+    )
+
+    front, back = index.split('__CELLS__')
+    await kernel.wait_for_start()
+    for hashid, cell in document.cells.items():
+        if isinstance(cell, CodeCell):
+            kernel.execute(cell.hashid, cell.code)
+
+    output.write(front)
+    for hashid, cell in document.cells.items():
+        if isinstance(cell, CodeCell):
+            await cell.wait_for()
+        output.write(cell.html)
+    output.write(back)
+
+    runner.cancel()
+    try:
+        await runner
+    except asyncio.CancelledError:
+        pass
 
 
 class KnitJ:
@@ -112,26 +156,10 @@ class KnitJ:
 
     def _source_handler(self, src: str) -> None:
         cells = self._parser.parse(src)
-        new_cells = []
-        updated_cells: List[BaseCell] = []
-        for cell in cells:
-            if cell.hashid in self._document.cells:
-                old_cell = self._document.cells[cell.hashid]
-                if isinstance(old_cell, CodeCell):
-                    assert isinstance(cell, CodeCell)
-                    if old_cell.update_flags(cell):
-                        updated_cells.append(old_cell)
-            else:
-                if isinstance(cell, CodeCell):
-                    cell._flags.add('evaluating')
-                new_cells.append(cell)
-        self.log(
+        new_cells, updated_cells = self._document.update_from_cells(cells)
+        log.info(
             f'File change: {len(new_cells)}/{len(cells)} new cells, '
             f'{len(updated_cells)}/{len(cells)} updated cells'
-        )
-        self._document.cells = OrderedDict(
-            (cell.hashid, self._document.cells.get(cell.hashid, cell))
-            for cell in cells
         )
         self._broadcast(dict(
             kind='document',

@@ -19,7 +19,7 @@ log = logging.getLogger('knitj.kernel')
 
 
 class Kernel:
-    def __init__(self, handler: Callable[[jupy.Message, Hash], None],
+    def __init__(self, handler: Callable[[jupy.Message, Hash], object],
                  kernel: str = None, log: Callable[[str], None] = None) -> None:
         self.handler = handler
         self.kernel = kernel or 'python3'
