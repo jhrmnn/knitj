@@ -17,18 +17,16 @@ def parse_cli() -> dict:
         help='browser to open')
     arg('-n', '--no-browser', dest='browser', action='store_false',
         help='do not open a browser')
-    arg('-s', '--static', action='store_true', help=(
-        'do not watch file for changes, render only once'
-    ))
+    arg('-s', '--server', action='store_true', help='run in server mode')
     return vars(parser.parse_args())
 
 
 def main() -> None:
     kwargs = parse_cli()
-    if kwargs.pop('static'):
-        task = asyncio.ensure_future(KnitJ(**kwargs, quiet=True).static())  # type: ignore
-    else:
+    if kwargs.pop('server'):
         task = asyncio.ensure_future(KnitJ(**kwargs).run())
+    else:
+        task = asyncio.ensure_future(KnitJ(**kwargs, quiet=True).static())
     try:
         asyncio.get_event_loop().run_until_complete(task)
     except KeyboardInterrupt:
