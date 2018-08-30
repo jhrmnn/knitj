@@ -19,11 +19,42 @@ class Kernel:
     def __init__(self, handler: Callable[[jupy.Message, Optional[Hash]], None],
                  kernel: str = None) -> None:
         self.handler = handler
+        self.kernel = kernel or 'python3'
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[UUID, Hash] = {}
         self._msg_queue: 'Queue[Dict]' = Queue()
         self._started = asyncio.get_event_loop().create_future()
-        self._kernel_name = kernel or 'python3'
+
+    async def run(self) -> None:
+        print('Starting kernel...')
+        self._kernel = jupyter_client.KernelManager(kernel_name=self.kernel)
+        self._kernel.start_kernel()
+        try:
+            self._client = self._kernel.client()
+            self._started.set_result(None)
+            print('Kernel started')
+            await asyncio.gather(
+                self._receiver(),
+                self._iopub_receiver(),
+                self._shell_receiver()
+            )
+        finally:
+            print('Shutting kernel')
+            try:
+                self._client.shutdown()
+            except AttributeError:
+                raise
+
+    def restart(self) -> None:
+        print('Restarting kernel')
+        self._kernel.restart_kernel()
+
+    def execute(self, hashid: Hash, code: str) -> None:
+        msg_id = UUID(self._client.execute(code))
+        self._hashids[msg_id] = hashid
+
+    async def wait_for_start(self) -> None:
+        await self._started
 
     async def _receiver(self) -> None:
         while True:
@@ -38,9 +69,6 @@ class Kernel:
             else:
                 hashid = None
             self.handler(msg, hashid)
-
-    async def wait_for_start(self) -> None:
-        await self._started
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
@@ -61,31 +89,3 @@ class Kernel:
             except queue.Empty:
                 continue
             self._msg_queue.put_nowait(dct)
-
-    def execute(self, hashid: Hash, code: str) -> None:
-        msg_id = UUID(self._client.execute(code))
-        self._hashids[msg_id] = hashid
-
-    async def run(self) -> None:
-        self._kernel = jupyter_client.KernelManager(kernel_name=self._kernel_name)
-        try:
-            print('Starting kernel')
-            self._kernel.start_kernel()
-            self._client = self._kernel.client()
-            self._started.set_result(None)
-            print('Kernel started')
-            await asyncio.gather(
-                self._receiver(),
-                self._iopub_receiver(),
-                self._shell_receiver()
-            )
-        finally:
-            print('Shutting kernel')
-            try:
-                self._client.shutdown()
-            except AttributeError:
-                raise
-
-    def restart(self) -> None:
-        print('rRstarting kernel')
-        self._kernel.restart_kernel()

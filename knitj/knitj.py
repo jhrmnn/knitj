@@ -59,6 +59,23 @@ class KnitJ:
                 if 'hide' in cell_tag.attrs['class']:
                     cell.flags.add('hide')
 
+    async def run(self) -> None:
+        await asyncio.gather(
+            self._kernel.run(),
+            self._server.run(),
+            Source(self._source_handler, self.source).run(),
+        )
+
+    async def static(self) -> None:
+        try:
+            await asyncio.gather(self._kernel.run(), self._printer())
+        except AllProcessed:
+            self._kernel._client.shutdown()
+
+    def log(self, o: Any) -> None:
+        if not self.quiet:
+            print(o)
+
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
             self.log('Will reevaluate a cell')
@@ -74,10 +91,6 @@ class KnitJ:
             pass
         else:
             raise ValueError(f'Unkonwn message: {msg["kind"]}')
-
-    def log(self, o: Any) -> None:
-        if not self.quiet:
-            print(o)
 
     def _broadcast(self, msg: Dict) -> None:
         self._server.broadcast(msg)
@@ -190,19 +203,6 @@ class KnitJ:
             if self.report:
                 f.close()
         raise AllProcessed
-
-    async def run(self) -> None:
-        await asyncio.gather(
-            self._kernel.run(),
-            self._server.run(),
-            Source(self._source_handler, self.source).run(),
-        )
-
-    async def static(self) -> None:
-        try:
-            await asyncio.gather(self._kernel.run(), self._printer())
-        except AllProcessed:
-            self._kernel._client.shutdown()
 
 
 class AllProcessed(Exception):
