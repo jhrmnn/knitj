@@ -2,8 +2,10 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 from argparse import ArgumentParser
-import webbrowser
 import asyncio
+from pathlib import Path
+
+import webbrowser
 
 from .knitj import KnitJ
 
@@ -11,8 +13,8 @@ from .knitj import KnitJ
 def parse_cli() -> dict:
     parser = ArgumentParser()
     arg = parser.add_argument
-    arg('source', metavar='FILE', help='source file in Markdown format')
-    arg('report', metavar='REPORT', nargs='?', help='rendered HTML file')
+    arg('source', type=Path, metavar='FILE', nargs='?', help='input file')
+    arg('-o', '--output', type=Path, metavar='FILE', help='output HTML file')
     arg('-b', '--browser', type=webbrowser.get, default=webbrowser.get(),
         help='browser to open')
     arg('-n', '--no-browser', dest='browser', action='store_false',

@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import queue
+import logging
 from pprint import pformat
 import asyncio
 from asyncio import Queue
@@ -14,9 +15,11 @@ from .jupyter_messaging import UUID
 
 from typing import Dict, Optional, Callable
 
+log = logging.getLogger('knitj.kernel')
+
 
 class Kernel:
-    def __init__(self, handler: Callable[[jupy.Message, Optional[Hash]], None],
+    def __init__(self, handler: Callable[[jupy.Message, Hash], None],
                  kernel: str = None, log: Callable[[str], None] = None) -> None:
         self.handler = handler
         self.kernel = kernel or 'python3'
@@ -70,10 +73,13 @@ class Kernel:
                 self.log(pformat(dct))
                 raise
             if msg.parent_header:
-                hashid: Optional[Hash] = self._hashids.get(msg.parent_header.msg_id)
+                hashid: Optional[Hash] = \
+                    self._hashids.get(msg.parent_header.msg_id)
             else:
                 hashid = None
-            self.handler(msg, hashid)
+                log.warn('message with no header')
+            if hashid:
+                self.handler(msg, hashid)
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
