@@ -29,15 +29,14 @@ setup(
     license='Mozilla Public License 2.0',
     install_requires=[
         'watchdog',
-        'ipykernel',
         'jupyter-client',
-        'mypy_extensions',
         'ansi2html',
         'misaka',
         'aiohttp',
         'pygments',
         'Jinja2',
         'beautifulsoup4',
+        'pyyaml',
     ],
     entry_points={
         'console_scripts': ['knitj = knitj.cli:main']
