@@ -74,7 +74,7 @@ class Kernel:
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
-            return self._client.get_iopub_msg(timeout=1)
+            return self._client.get_iopub_msg(timeout=0.3)
         while True:
             try:
                 dct = await self._loop.run_in_executor(None, partial)
@@ -84,7 +84,7 @@ class Kernel:
 
     async def _shell_receiver(self) -> None:
         def partial() -> Dict:
-            return self._client.get_shell_msg(timeout=1)
+            return self._client.get_shell_msg(timeout=0.3)
         while True:
             try:
                 dct = await self._loop.run_in_executor(None, partial)

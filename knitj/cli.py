@@ -6,6 +6,7 @@ import argparse
 import asyncio
 from pathlib import Path
 import logging
+import concurrent.futures
 from contextlib import contextmanager
 
 import webbrowser
@@ -44,6 +45,9 @@ def main() -> None:
         raise RuntimeError('Cannot determine input format')
     logging.basicConfig(level=logging.INFO)
     loop = asyncio.get_event_loop()
+    # hack to catch exceptions from kernel channels that run in threads
+    executor = concurrent.futures.ThreadPoolExecutor()
+    loop.set_default_executor(executor)
     if args.server:
         assert args.source
         if args.output:
@@ -63,6 +67,7 @@ def main() -> None:
         with maybe_input(args.source) as source, \
                 maybe_output(args.output) as output:
             loop.run_until_complete(convert(source, output, fmt, args.kernel))
+    executor.shutdown(wait=True)
     loop.close()
 
 
