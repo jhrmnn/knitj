@@ -1,6 +1,6 @@
-from typing import Awaitable, Callable, AsyncIterable, List
+from typing import Awaitable, Callable, AsyncIterable, List, Any
 
-from . import WSMessage
+from . import WSMessage, WSCloseCode
 
 
 class HTTPNotFound(Exception):
@@ -12,7 +12,7 @@ class BaseRequest:
 
 
 class Request(BaseRequest):
-    ...
+    app: 'Application'
 
 
 class Response:
@@ -33,8 +33,10 @@ class Router:
 
 class Application:
     router: Router
-    on_shutdown: List[Callable[['Application'], None]]
+    on_shutdown: List[Callable[['Application'], Awaitable[None]]]
     def __init__(self) -> None: ...
+    def __getitem__(self, key: str) -> Any: ...
+    def __setitem__(self, key: str, value: Any) -> None: ...
 
 
 class AppRunner:
@@ -48,7 +50,8 @@ class WebSocketResponse(Response, AsyncIterable[WSMessage]):
     def __aiter__(self) -> 'WebSocketResponse': ...
     async def __anext__(self) -> WSMessage: ...
     async def prepare(self, request: BaseRequest) -> None: ...
-    async def send_str(self, data: str): ...
+    async def send_str(self, data: str) -> None: ...
+    async def close(self, code: WSCloseCode, message: str) -> None: ...
 
 
 class TCPSite:

@@ -12,4 +12,4 @@ class WSMessage:
 
 
 class WSCloseCode:
-    pass
+    GOING_AWAY: 'WSCloseCode'

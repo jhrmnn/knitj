@@ -19,7 +19,7 @@ from pygments.styles import get_style_by_name
 
 from .kernel import Kernel
 from .source import Source
-from .webserver import WebServer
+from .webserver import init_webapp
 from .parser import Parser
 from .cell import CodeCell
 from .document import Document
@@ -93,12 +93,11 @@ class KnitjServer:
         self.output = Path(output)
         self._browser = browser
         self._kernel = Kernel(self._kernel_handler, kernel)
-        self._webserver = WebServer(
-            self._get_index, self._nb_msg_handler
-        )
+        self._webapp = init_webapp(self._get_index, self._nb_msg_handler)
+        self._webrunner = web.AppRunner(self._webapp)
         self._parser = Parser(fmt)
         self._runners: List[asyncio.Future] = []
-        self._broadcaster = Broadcaster(self._webserver._nb_wss)
+        self._broadcaster = Broadcaster(self._webapp['nb_wss'])
         if self.source.exists():
             cells = self._parser.parse(self.source.read_text())
         else:
@@ -108,7 +107,18 @@ class KnitjServer:
             self._document.load_output_from_html(self.output.read_text())
 
     async def start(self) -> None:
-        port = await self._webserver.start()
+        await self._webrunner.setup()
+        for port in range(8080, 8100):
+            try:
+                site = web.TCPSite(self._webrunner, 'localhost', port)
+                await site.start()
+            except OSError:
+                pass
+            else:
+                break
+        else:
+            raise RuntimeError('No available port')
+        log.info(f'Started web server on port {port}')
         if self._browser:
             self._browser.open(f'http://localhost:{port}')
         self._runners.extend([
@@ -128,7 +138,7 @@ class KnitjServer:
         ))
 
     async def cleanup(self) -> None:
-        await self._webserver._runner.cleanup()
+        await self._webrunner.cleanup()
         for runner in self._runners:
             runner.cancel()
             try:

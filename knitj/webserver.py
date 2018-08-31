@@ -9,55 +9,40 @@ from aiohttp import web, WSCloseCode
 
 from typing import Callable, Awaitable, Optional, Dict, Set  # noqa
 
-log = logging.getLogger('knitj.server')
+log = logging.getLogger('knitj.webserver')
 
 
-class WebServer:
-    def __init__(self, get_index: Callable[[], str],
-                 nb_msg_handler: Callable[[Dict], None]) -> None:
-        self.get_index = get_index
-        self._nb_wss: 'WeakSet[web.WebSocketResponse]' = WeakSet()
-        self._nb_msg_handler = nb_msg_handler
-        self._app = web.Application()
-        self._app.router.add_static('/static', resource_filename('knitj', 'client/static'))
-        self._app.router.add_get('/', self.handler)
-        self._app.router.add_get('/ws', self.handler)
-        self._app.on_shutdown.append(self._on_shutdown)
-        self._runner = web.AppRunner(self._app)
+async def on_shutdown(app: web.Application) -> None:
+    ws: web.WebSocketResponse
+    for ws in set(app['nb_wss']):
+        await ws.close(code=WSCloseCode.GOING_AWAY, message='Server shutdown')
 
-    async def _on_shutdown(self, app):
-        for ws in set(self._nb_wss):
-            await ws.close(code=WSCloseCode.GOING_AWAY, message='Server shutdown')
 
-    def _get_response(self, text: str) -> web.Response:
-        return web.Response(text=text, content_type='text/html')
+async def handler(request: web.Request) -> web.Response:
+    app = request.app
+    if request.path == '/':
+        return web.Response(text=app['get_index'](), content_type='text/html')
+    if request.path == '/ws':
+        ws = web.WebSocketResponse(autoclose=False)
+        await ws.prepare(request)
+        log.info(f'Notebook connected: {id(ws)}')
+        app['nb_wss'].add(ws)
+        async for msg in ws:
+            app['nb_msg_handler'](msg.json())
+        log.info(f'Notebook disconnected: {id(ws)}')
+        app['nb_wss'].remove(ws)
+        return ws
+    raise web.HTTPNotFound()
 
-    async def handler(self, request: web.Request) -> web.Response:
-        if request.path == '/':
-            return self._get_response(self.get_index())
-        if request.path == '/ws':
-            ws = web.WebSocketResponse(autoclose=False)
-            await ws.prepare(request)
-            log.info(f'Notebook connected: {id(ws)}')
-            self._nb_wss.add(ws)
-            async for msg in ws:
-                self._nb_msg_handler(msg.json())
-            log.info(f'Notebook disconnected: {id(ws)}')
-            self._nb_wss.remove(ws)
-            return ws
-        raise web.HTTPNotFound()
 
-    async def start(self) -> int:
-        await self._runner.setup()
-        for port in range(8080, 8100):
-            try:
-                site = web.TCPSite(self._runner, 'localhost', port)
-                await site.start()
-            except OSError:
-                pass
-            else:
-                break
-        else:
-            raise RuntimeError('No available port')
-        log.info(f'Started web server on port {port}')
-        return port
+def init_webapp(get_index: Callable[[], str],
+                nb_msg_handler: Callable[[Dict], None]) -> web.Application:
+        app = web.Application()
+        app['get_index'] = get_index
+        app['nb_msg_handler'] = nb_msg_handler
+        app['nb_wss'] = WeakSet()
+        app.router.add_static('/static', resource_filename('knitj', 'client/static'))
+        app.router.add_get('/', handler)
+        app.router.add_get('/ws', handler)
+        app.on_shutdown.append(on_shutdown)
+        return app
