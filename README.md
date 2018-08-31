@@ -6,25 +6,31 @@ In addition to a one-off conversion, KnitJ can serve the HTML document via HTTP 
 
 ## Example
 
-Either of the two following files renders into the same HTML document below with `knitj $SOURCE >$SOURCE.html`.
+Either of the two following files renders into the same HTML document below with
 
-    ```python
-    #::hide
-    import numpy as np
-    from matplotlib import pyplot as plt
-    %matplotlib inline
-    ```
-    
-    ## Example
-    
-    Let's plot
-    
-    $$ f(x)=\frac{\sin x}x $$
-    
-    ```python
-    x = np.linspace(-20, 20, 200)
-    plt.plot(x, np.sin(x)/x)
-    ```
+```bash
+knitj $SOURCE >$SOURCE.html
+```
+
+~~~markdown
+```python
+#::hide
+import numpy as np
+from matplotlib import pyplot as plt
+%matplotlib inline
+```
+
+## Example
+
+Let's plot
+
+$$ f(x)=\frac{\sin x}x $$
+
+```python
+x = np.linspace(-20, 20, 200)
+plt.plot(x, np.sin(x)/x)
+```
+~~~
 
 ```python
 # ::hide
