@@ -20,23 +20,22 @@ log = logging.getLogger('knitj.kernel')
 
 class Kernel:
     def __init__(self, handler: Callable[[jupy.Message, Hash], object],
-                 kernel: str = None, log: Callable[[str], None] = None) -> None:
+                 kernel: str = None) -> None:
         self.handler = handler
         self.kernel = kernel or 'python3'
-        self._log = log
         self._loop = asyncio.get_event_loop()
         self._hashids: Dict[UUID, Hash] = {}
         self._msg_queue: 'Queue[Dict]' = Queue()
         self._started = asyncio.get_event_loop().create_future()
 
     async def run(self) -> None:
-        self.log('Starting kernel...')
+        log.info('Starting kernel...')
         self._kernel = jupyter_client.KernelManager(kernel_name=self.kernel)
         self._kernel.start_kernel()
         try:
             self._client = self._kernel.client()
             self._started.set_result(None)
-            self.log('Kernel started')
+            log.info('Kernel started')
             await asyncio.gather(
                 self._receiver(),
                 self._iopub_receiver(),
@@ -46,11 +45,11 @@ class Kernel:
             self.shutdown()
 
     def shutdown(self) -> None:
-        self.log('Shutting kernel')
+        log.info('Shutting kernel')
         self._kernel.shutdown_kernel()
 
     def restart(self) -> None:
-        self.log('Restarting kernel')
+        log.info('Restarting kernel')
         self._kernel.restart_kernel()
 
     def execute(self, hashid: Hash, code: str) -> None:
@@ -60,17 +59,13 @@ class Kernel:
     async def wait_for_start(self) -> None:
         await self._started
 
-    def log(self, msg: str) -> None:
-        if self._log:
-            self._log(msg)
-
     async def _receiver(self) -> None:
         while True:
             dct = await self._msg_queue.get()
             try:
                 msg = jupy.parse(dct)
             except (TypeError, ValueError):
-                self.log(pformat(dct))
+                log.info(pformat(dct))
                 raise
             if msg.parent_header:
                 hashid: Optional[Hash] = \

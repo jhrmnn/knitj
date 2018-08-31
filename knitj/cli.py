@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import sys
-from argparse import ArgumentParser
+import argparse
 import asyncio
 from pathlib import Path
 import logging
@@ -12,11 +12,11 @@ import webbrowser
 
 from typing import Optional, Iterator, IO
 
-from .knitj import KnitJ, convert
+from .knitj import KnitjServer, convert
 
 
-def parse_cli() -> dict:
-    parser = ArgumentParser()
+def parse_cli() -> argparse.Namespace:
+    parser = argparse.ArgumentParser()
     arg = parser.add_argument
     arg('source', type=Path, metavar='FILE', nargs='?', help='input file')
     arg('-o', '--output', type=Path, metavar='FILE', help='output HTML file')
@@ -26,28 +26,41 @@ def parse_cli() -> dict:
         help='do not open a browser')
     arg('-s', '--server', action='store_true', help='run in server mode')
     arg('-k', '--kernel', help='Jupyter kernel to use')
-    return vars(parser.parse_args())
+    arg('-f', '--format', help='Input format')
+    return parser.parse_args()
 
 
 def main() -> None:
-    kwargs = parse_cli()
+    args = parse_cli()
+    fmt: Optional[str] = None
+    if args.format:
+        fmt = args.format
+    elif args.source:
+        if args.source.suffix == '.py':
+            fmt = 'python'
+        elif args.source.suffix == '.md':
+            fmt = 'markdown'
+    if not fmt:
+        raise RuntimeError('Cannot determine input format')
     logging.basicConfig(level=logging.INFO)
-    server_mode = kwargs.pop('server')
-    if not server_mode:
-        kwargs['quiet'] = True
-    app = KnitJ(**kwargs)
     loop = asyncio.get_event_loop()
-    if server_mode:
+    if args.server:
+        assert args.source
+        if args.output:
+            output = args.output
+        else:
+            output = args.source.with_suffix('.html')
+        app = KnitjServer(
+            args.source, output, fmt, args.browser, args.kernel
+        )
         try:
             loop.run_until_complete(app.run())
         except KeyboardInterrupt:
             loop.run_until_complete(app.cleanup())
     else:
-        with maybe_input(kwargs['source']) as source, \
-                maybe_output(kwargs['output']) as output:
-            loop.run_until_complete(
-                convert(source, output, 'python', kwargs['kernel'])
-            )
+        with maybe_input(args.source) as source, \
+                maybe_output(args.output) as output:
+            loop.run_until_complete(convert(source, output, fmt, args.kernel))
     loop.close()
 
 

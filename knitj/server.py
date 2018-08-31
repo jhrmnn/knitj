@@ -7,6 +7,7 @@ import json
 import asyncio
 from asyncio import Queue
 import webbrowser
+import logging
 
 from aiohttp import web
 import ansi2html
@@ -15,6 +16,8 @@ from pygments.formatters import HtmlFormatter
 from jinja2 import Template
 
 from typing import Callable, Awaitable, Optional, Dict, Set  # noqa
+
+log = logging.getLogger('knitj.server')
 
 
 class App:
@@ -64,11 +67,11 @@ class Server:
             ws = web.WebSocketResponse(autoclose=False)
             request.app = App()  # type: ignore
             await ws.prepare(request)
-            print('Notebook connected:', id(ws))
+            log.info(f'Notebook connected: {id(ws)}')
             self._notebooks.add(ws)
             async for msg in ws:
                 self._nb_msg_handler(msg.json())
-            print('Notebook disconnected:', id(ws))
+            log.info(f'Notebook disconnected: {id(ws)}')
             self._notebooks.remove(ws)
             return ws
         try:
@@ -89,7 +92,7 @@ class Server:
                 break
         else:
             raise RuntimeError('Cannot find an available port')
-        print(f'Started web server on port {port}')
+        log.info(f'Started web server on port {port}')
         if self._browser:
             self._browser.open(f'http://localhost:{port}')
         await self._broadcaster()

@@ -4,7 +4,6 @@
 import os
 from pathlib import Path
 import asyncio
-import sys
 import webbrowser
 import logging
 from itertools import chain
@@ -30,12 +29,6 @@ from . import jupyter_messaging as jupy
 log = logging.getLogger('knitj')
 
 
-# #server
-# def __init__(self, source: os.PathLike, output: os.PathLike,
-#              browser: webbrowser.BaseBrowser = None,
-#              kernel: str = None) -> None:
-
-
 def get_frontback():
     index = resource_string('knitj', 'client/templates/index.html').decode()
     template = Template(index)
@@ -57,7 +50,7 @@ async def convert(source: IO[str], output: IO[str], fmt: str,
     parser = Parser(fmt)
     cells = parser.parse(source.read())
     document = Document(cells)
-    kernel = Kernel(document.process_message, kernel_name, log.info)
+    kernel = Kernel(document.process_message, kernel_name)
     runner = asyncio.ensure_future(kernel.run())
     await kernel.wait_for_start()
     for hashid, cell in document.cells.items():
@@ -75,26 +68,25 @@ async def convert(source: IO[str], output: IO[str], fmt: str,
         pass
 
 
-class KnitJ:
-    def __init__(self, source: os.PathLike, output: os.PathLike = None,
-                 browser: webbrowser.BaseBrowser = None, quiet: bool = False,
+class KnitjServer:
+    def __init__(self, source: os.PathLike, output: os.PathLike, fmt: str,
+                 browser: webbrowser.BaseBrowser = None,
                  kernel: str = None) -> None:
         self.source = Path(source)
-        self._output_given = bool(output)
-        self.output = Path(output) if output else self.source.with_suffix('.html')
-        self.quiet = False
-        self._kernel = Kernel(self._kernel_handler, kernel, self.log)
-        self._server = Server(self._get_html, self._nb_msg_handler, browser=browser)
-        self._parser = Parser('python' if self.source.suffix == '.py' else 'markdown')
+        self.output = Path(output)
+        self._kernel = Kernel(self._kernel_handler, kernel)
+        self._server = Server(
+            self._get_html, self._nb_msg_handler, browser=browser
+        )
+        self._parser = Parser(fmt)
         self._runner: Optional[asyncio.Future] = None
         if self.source.exists():
             cells = self._parser.parse(self.source.read_text())
         else:
             cells = []
         self._document = Document(cells)
-        if not self.output or not self.output.exists():
-            return
-        self._document.load_output_from_html(self.output.read_text())
+        if self.output.exists():
+            self._document.load_output_from_html(self.output.read_text())
 
     async def run(self) -> None:
         self._runner = asyncio.gather(
@@ -122,20 +114,16 @@ class KnitJ:
             except asyncio.CancelledError:
                 pass
 
-    def log(self, o: Any) -> None:
-        if not self.quiet:
-            print(o)
-
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
-            self.log('Will reevaluate a cell')
+            log.info('Will reevaluate a cell')
             hashid = msg['hashid']
             cell = self._document.cells[hashid]
             assert isinstance(cell, CodeCell)
             cell.reset()
             self._kernel.execute(hashid, cell.code)
         elif msg['kind'] == 'restart_kernel':
-            self.log('Restarting kernel')
+            log.info('Restarting kernel')
             self._kernel.restart()
         elif msg['kind'] == 'ping':
             pass
