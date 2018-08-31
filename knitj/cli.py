@@ -53,10 +53,12 @@ def main() -> None:
         app = KnitjServer(
             args.source, output, fmt, args.browser, args.kernel
         )
+        app.start()
         try:
-            loop.run_until_complete(app.run())
+            loop.run_forever()
         except KeyboardInterrupt:
-            loop.run_until_complete(app.cleanup())
+            pass
+        loop.run_until_complete(app.cleanup())
     else:
         with maybe_input(args.source) as source, \
                 maybe_output(args.output) as output:

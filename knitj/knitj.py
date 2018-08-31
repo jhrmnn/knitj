@@ -79,7 +79,7 @@ class KnitjServer:
             self._get_html, self._nb_msg_handler, browser=browser
         )
         self._parser = Parser(fmt)
-        self._runner: Optional[asyncio.Future] = None
+        self._runners: List[asyncio.Future] = []
         if self.source.exists():
             cells = self._parser.parse(self.source.read_text())
         else:
@@ -88,13 +88,12 @@ class KnitjServer:
         if self.output.exists():
             self._document.load_output_from_html(self.output.read_text())
 
-    async def run(self) -> None:
-        self._runner = asyncio.gather(
-            self._kernel.run(),
-            self._server.run(),
-            Source(self._source_handler, self.source).run(),
-        )
-        await self._runner
+    def start(self) -> None:
+        self._runners.extend([
+            asyncio.ensure_future(self._kernel.run()),
+            asyncio.ensure_future(self._server.run()),
+            asyncio.ensure_future(Source(self._source_handler, self.source).run()),
+        ])
 
     def _kernel_handler(self, msg: jupy.Message, hashid: Hash) -> None:
         cell = self._document.process_message(msg, hashid)
@@ -107,10 +106,10 @@ class KnitjServer:
         ))
 
     async def cleanup(self) -> None:
-        if self._runner:
-            self._runner.cancel()
+        for runner in self._runners:
+            runner.cancel()
             try:
-                await self._runner
+                await runner
             except asyncio.CancelledError:
                 pass
 
