@@ -146,7 +146,7 @@ class CodeCell(BaseCell):
             assert m
             output = self._output[MIME.IMAGE_SVG_XML][m.start():]
         elif MIME.IMAGE_PNG in self._output:
-            output = f'<img src="data:image/png;base64,{self._output[MIME.IMAGE_PNG]}">'
+            output = f'<img alt="" src="data:image/png;base64,{self._output[MIME.IMAGE_PNG]}"/>'
         elif MIME.TEXT_HTML in self._output:
             output = self._output[MIME.TEXT_HTML]
         elif MIME.TEXT_PLAIN in self._output:

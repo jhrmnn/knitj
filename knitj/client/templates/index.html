@@ -1,10 +1,13 @@
-<!doctype html>
-<html>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>{{ title }}</title>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/katex.min.css" integrity="sha384-D+9gmBxUQogRLqvARvNLmA9hS2x//eK1FhVb9PiU86gmcrBrJAQT8okdJ4LMp2uv" crossorigin="anonymous"/>
+<script type="text/javascript" defer="defer" src="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
+<script type="text/javascript" defer="defer" src="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/contrib/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
+<style type="text/css">
     body {
         margin: 1em auto;
         max-width: 80ch;
@@ -47,19 +50,15 @@
     .hide.done .code { display: none; }
     .code-cell:not(.done) .code { background-color: #e7ffe5; }
     .evaluating .code { background-color: #ffeded !important; }
-    {{ styles }}
     .katex { font-size: 1em !important; }
     .katex-html .tag { position: static !important; float: right; }
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/katex.min.css" integrity="sha384-D+9gmBxUQogRLqvARvNLmA9hS2x//eK1FhVb9PiU86gmcrBrJAQT8okdJ4LMp2uv" crossorigin="anonymous">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/katex.min.js" integrity="sha384-483A6DwYfKeDa0Q52fJmxFXkcPCFfnXMoXblOkJ4JcA8zATN6Tm78UNL72AKk+0O" crossorigin="anonymous"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.10.0-rc.1/dist/contrib/auto-render.min.js" integrity="sha384-yACMu8JWxKzSp/C1YV86pzGiQ/l1YUfE8oPuahJQxzehAjEt2GiQuy/BIvl9KyeF" crossorigin="anonymous" onload="renderMathInElement(document.body);"></script>
 </head>
 <body>
 <div id="cells">
 {{ cells }}
 </div>
-<script>
+<script type="text/javascript">
 function renderMath(elem) {
   try {
     renderMathInElement(elem, { delimiters: [
@@ -71,7 +70,12 @@ function renderMath(elem) {
   }
 }
 </script>
-{% if client %}<script src="static/client.js"></script>{% endif %}
+{% if client %}
+<script type="text/javascript" src="static/client.js"></script>
+{% endif %}
+<style type="text/css">
+{{ styles }}
+</style>
 </body>
 </html>
 <!-- vim: set ft=liquid: -->
