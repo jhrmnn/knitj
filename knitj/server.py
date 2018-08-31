@@ -1,8 +1,6 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-from pathlib import Path
-from itertools import chain
 import json
 from asyncio import Queue
 import webbrowser
@@ -11,10 +9,6 @@ from weakref import WeakSet
 from pkg_resources import resource_filename
 
 from aiohttp import web, WSCloseCode
-import ansi2html
-from pygments.styles import get_style_by_name
-from pygments.formatters import HtmlFormatter
-from jinja2 import Template
 
 from typing import Callable, Awaitable, Optional, Dict, Set  # noqa
 
@@ -22,12 +16,11 @@ log = logging.getLogger('knitj.server')
 
 
 class Server:
-    def __init__(self, get_html: Callable[[], str],
+    def __init__(self, get_index: Callable[[], str],
                  nb_msg_handler: Callable[[Dict], None],
                  browser: webbrowser.BaseBrowser = None) -> None:
-        self.get_html = get_html
+        self.get_index = get_index
         self._notebooks: 'WeakSet[web.WebSocketResponse]' = WeakSet()
-        self._root = Path(__file__).parent/'client'
         self._browser = browser
         self._nb_msg_handler = nb_msg_handler
         self._msg_queue: 'Queue[Dict]' = Queue()
@@ -55,20 +48,9 @@ class Server:
             for ws in self._notebooks:
                 await ws.send_str(data)
 
-    def get_index(self, cells: str = None, client: bool = False) -> str:
-        template = Template((self._root/'templates/index.html').read_text())
-        return template.render(
-            cells=cells or self.get_html(),
-            styles='\n'.join(chain(
-                [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
-                map(str, ansi2html.style.get_styles())
-            )),
-            client=client,
-        )
-
     async def handler(self, request: web.Request) -> web.Response:
         if request.path == '/':
-            return self._get_response(self.get_index(client=True))
+            return self._get_response(self.get_index())
         if request.path == '/ws':
             ws = web.WebSocketResponse(autoclose=False)
             await ws.prepare(request)

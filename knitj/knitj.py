@@ -29,23 +29,22 @@ from . import jupyter_messaging as jupy
 log = logging.getLogger('knitj')
 
 
-def get_frontback():
+def render_index(cells: str, client: bool = True) -> str:
     index = resource_string('knitj', 'client/templates/index.html').decode()
     template = Template(index)
-    index = template.render(
-        cells='__CELLS__',
+    return template.render(
+        cells=cells,
         styles='\n'.join(chain(
             [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
             map(str, ansi2html.style.get_styles())
         )),
-        client=False,
+        client=client,
     )
-    return index.split('__CELLS__')
 
 
 async def convert(source: IO[str], output: IO[str], fmt: str,
                   kernel_name: str = None) -> None:
-    front, back = get_frontback()
+    front, back = render_index('__CELLS__', client=False).split('__CELLS__')
     output.write(front)
     parser = Parser(fmt)
     cells = parser.parse(source.read())
@@ -76,7 +75,7 @@ class KnitjServer:
         self.output = Path(output)
         self._kernel = Kernel(self._kernel_handler, kernel)
         self._server = Server(
-            self._get_html, self._nb_msg_handler, browser=browser
+            self._get_index, self._nb_msg_handler, browser=browser
         )
         self._parser = Parser(fmt)
         self._runners: List[asyncio.Future] = []
@@ -132,7 +131,7 @@ class KnitjServer:
 
     def _broadcast(self, msg: Dict) -> None:
         self._server.broadcast(msg)
-        self._save_output()
+        self.output.write_text(self._get_index(client=False))
 
     def _source_handler(self, src: str) -> None:
         cells = self._parser.parse(src)
@@ -150,9 +149,6 @@ class KnitjServer:
             if isinstance(cell, CodeCell):
                 self._kernel.execute(cell.hashid, cell.code)
 
-    def _save_output(self) -> None:
-        if self.output:
-            self.output.write_text(self._server.get_index())
-
-    def _get_html(self) -> str:
-        return '\n'.join(cell.html for cell in self._document.cells.values())
+    def _get_index(self, client: bool = True) -> str:
+        cells = '\n'.join(cell.html for cell in self._document.cells.values())
+        return render_index(cells, client=client)
