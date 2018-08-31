@@ -69,10 +69,6 @@ function renderMath(elem) {
     console.warn(e);
   }
 }
-
-Array.from(document.getElementsByClassName('text-cell')).forEach((cell) => {
-  renderMath(cell);
-});
 </script>
 {% if client %}<script src="client.js"></script>{% endif %}
 </body>
