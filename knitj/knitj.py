@@ -33,15 +33,11 @@ log = logging.getLogger('knitj')
 def render_index(title: str, cells: str, client: bool = True) -> str:
     index = resource_string('knitj', 'client/templates/index.html').decode()
     template = Template(index)
-    return template.render(
-        title=title,
-        cells=cells,
-        styles='\n'.join(chain(
-            [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
-            map(str, ansi2html.style.get_styles())
-        )),
-        client=client,
-    )
+    styles = '\n'.join(chain(
+        [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
+        map(str, ansi2html.style.get_styles())
+    ))
+    return template.render(title=title, cells=cells, styles=styles, client=client)
 
 
 async def convert(source: IO[str], output: IO[str], fmt: str,
