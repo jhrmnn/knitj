@@ -106,6 +106,7 @@ class KnitjServer:
         ))
 
     async def cleanup(self) -> None:
+        await self._server._runner.cleanup()
         for runner in self._runners:
             runner.cancel()
             try:

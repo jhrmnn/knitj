@@ -1,4 +1,5 @@
-from typing import Awaitable, Callable, AsyncIterable
+from typing import Awaitable, Callable, AsyncIterable, List
+
 from . import WSMessage
 
 
@@ -10,12 +11,36 @@ class BaseRequest:
     path: str
 
 
+class Request(BaseRequest):
+    ...
+
+
 class Response:
     def __init__(self, *, text: str = None, content_type: str = None) -> None: ...
 
 
+Handler = Callable[[Request], Awaitable[Response]]
+
+
 class Server:
-    def __init__(self, handler: Callable[[BaseRequest], Awaitable[Response]]) -> None: ...
+    def __init__(self, handler: Handler) -> None: ...
+
+
+class Router:
+    def add_static(self, prefix: str, path: str) -> None: ...
+    def add_get(self, path: str, handler: Handler) -> None: ...
+
+
+class Application:
+    router: Router
+    on_shutdown: List[Callable[['Application'], None]]
+    def __init__(self) -> None: ...
+
+
+class AppRunner:
+    def __init__(self, app: Application) -> None: ...
+    async def setup(self) -> None: ...
+    async def cleanup(self) -> None: ...
 
 
 class WebSocketResponse(Response, AsyncIterable[WSMessage]):
@@ -24,3 +49,8 @@ class WebSocketResponse(Response, AsyncIterable[WSMessage]):
     async def __anext__(self) -> WSMessage: ...
     async def prepare(self, request: BaseRequest) -> None: ...
     async def send_str(self, data: str): ...
+
+
+class TCPSite:
+    def __init__(self, runner: AppRunner, address: str, port: int) -> None: ...
+    async def start(self) -> None: ...
