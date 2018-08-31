@@ -1,11 +1,10 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-import queue
+import asyncio
 import logging
 from pprint import pformat
-import asyncio
-from asyncio import Queue
+import queue
 
 import jupyter_client
 
@@ -23,30 +22,30 @@ class Kernel:
                  kernel: str = None) -> None:
         self.handler = handler
         self.kernel = kernel or 'python3'
-        self._loop = asyncio.get_event_loop()
         self._hashids: Dict[UUID, Hash] = {}
-        self._msg_queue: 'Queue[Dict]' = Queue()
-        self._started = asyncio.get_event_loop().create_future()
+        self._msg_queue: 'asyncio.Queue[Dict]' = asyncio.Queue()
+        self._loop = asyncio.get_event_loop()
 
-    async def run(self) -> None:
+    def start(self) -> None:
         log.info('Starting kernel...')
         self._kernel = jupyter_client.KernelManager(kernel_name=self.kernel)
         self._kernel.start_kernel()
-        try:
-            self._client = self._kernel.client()
-            self._started.set_result(None)
-            log.info('Kernel started')
-            await asyncio.gather(
-                self._receiver(),
-                self._iopub_receiver(),
-                self._shell_receiver()
-            )
-        finally:
-            self.shutdown()
+        self._client = self._kernel.client()
+        log.info('Kernel started')
+        self._channels = asyncio.ensure_future(asyncio.gather(
+            self._receiver(),
+            self._iopub_receiver(),
+            self._shell_receiver()
+        ))
 
-    def shutdown(self) -> None:
-        log.info('Shutting kernel')
+    async def cleanup(self) -> None:
         self._kernel.shutdown_kernel()
+        self._channels.cancel()
+        try:
+            await self._channels
+        except asyncio.CancelledError:
+            pass
+        log.info('Kernel shut down')
 
     def restart(self) -> None:
         log.info('Restarting kernel')
@@ -55,9 +54,6 @@ class Kernel:
     def execute(self, hashid: Hash, code: str) -> None:
         msg_id = UUID(self._client.execute(code))
         self._hashids[msg_id] = hashid
-
-    async def wait_for_start(self) -> None:
-        await self._started
 
     async def _receiver(self) -> None:
         while True:

@@ -46,14 +46,13 @@ def render_index(title: str, cells: str, client: bool = True) -> str:
 
 async def convert(source: IO[str], output: IO[str], fmt: str,
                   kernel_name: str = None) -> None:
-    front, back = render_index('', '__CELLS__', client=False).split('__CELLS__')
-    output.write(front)
     parser = Parser(fmt)
     cells = parser.parse(source.read())
     document = Document(cells)
     kernel = Kernel(document.process_message, kernel_name)
-    runner = asyncio.ensure_future(kernel.run())
-    await kernel.wait_for_start()
+    kernel.start()
+    front, back = render_index('', '__CELLS__', client=False).split('__CELLS__')
+    output.write(front)
     for hashid, cell in document.cells.items():
         if isinstance(cell, CodeCell):
             kernel.execute(cell.hashid, cell.code)
@@ -62,11 +61,7 @@ async def convert(source: IO[str], output: IO[str], fmt: str,
             await cell.wait_for()
         output.write(cell.html)
     output.write(back)
-    runner.cancel()
-    try:
-        await runner
-    except asyncio.CancelledError:
-        pass
+    await kernel.cleanup()
 
 
 class Broadcaster:
@@ -110,6 +105,7 @@ class KnitjServer:
 
     async def start(self) -> None:
         await self._webrunner.setup()
+        self._kernel.start()
         for port in range(8080, 8100):
             try:
                 site = web.TCPSite(self._webrunner, 'localhost', port)
@@ -124,13 +120,12 @@ class KnitjServer:
         if self._browser:
             self._browser.open(f'http://localhost:{port}')
         self._tasks.extend([
-            asyncio.ensure_future(self._kernel.run()),
             asyncio.ensure_future(self._broadcaster.run()),
             asyncio.ensure_future(self._watcher.run()),
         ])
 
     async def cleanup(self) -> None:
-        await self._webrunner.cleanup()
+        await asyncio.gather(self._webrunner.cleanup(), self._kernel.cleanup())
         for task in self._tasks:
             task.cancel()
             try:
