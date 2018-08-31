@@ -36,15 +36,9 @@ log = logging.getLogger('knitj')
 #              kernel: str = None) -> None:
 
 
-async def convert(source: IO[str], output: IO[str], fmt: str,
-                  kernel_name: str = None) -> None:
-    parser = Parser(fmt)
-    cells = parser.parse(source.read())
-    document = Document(cells)
-    kernel = Kernel(document.process_message, kernel_name, log.info)
-    runner = asyncio.ensure_future(kernel.run())
-
-    template = Template(resource_string('knitj', 'client/templates/index.html'))
+def get_frontback():
+    index = resource_string('knitj', 'client/templates/index.html').decode()
+    template = Template(index)
     index = template.render(
         cells='__CELLS__',
         styles='\n'.join(chain(
@@ -53,20 +47,27 @@ async def convert(source: IO[str], output: IO[str], fmt: str,
         )),
         client=False,
     )
+    return index.split('__CELLS__')
 
-    front, back = index.split('__CELLS__')
+
+async def convert(source: IO[str], output: IO[str], fmt: str,
+                  kernel_name: str = None) -> None:
+    front, back = get_frontback()
+    output.write(front)
+    parser = Parser(fmt)
+    cells = parser.parse(source.read())
+    document = Document(cells)
+    kernel = Kernel(document.process_message, kernel_name, log.info)
+    runner = asyncio.ensure_future(kernel.run())
     await kernel.wait_for_start()
     for hashid, cell in document.cells.items():
         if isinstance(cell, CodeCell):
             kernel.execute(cell.hashid, cell.code)
-
-    output.write(front)
     for hashid, cell in document.cells.items():
         if isinstance(cell, CodeCell):
             await cell.wait_for()
         output.write(cell.html)
     output.write(back)
-
     runner.cancel()
     try:
         await runner
@@ -81,7 +82,7 @@ class KnitJ:
         self.source = Path(source)
         self._output_given = bool(output)
         self.output = Path(output) if output else self.source.with_suffix('.html')
-        self.quiet = quiet
+        self.quiet = False
         self._kernel = Kernel(self._kernel_handler, kernel, self.log)
         self._server = Server(self._get_html, self._nb_msg_handler, browser=browser)
         self._parser = Parser('python' if self.source.suffix == '.py' else 'markdown')
@@ -112,15 +113,6 @@ class KnitJ:
             hashid=cell.hashid,
             html=cell.html,
         ))
-
-    async def static(self) -> None:
-        runner = asyncio.ensure_future(self._kernel.run())
-        await self._printer()
-        runner.cancel()
-        try:
-            await runner
-        except asyncio.CancelledError:
-            pass
 
     async def cleanup(self) -> None:
         if self._runner:
@@ -176,28 +168,3 @@ class KnitJ:
 
     def _get_html(self) -> str:
         return '\n'.join(cell.html for cell in self._document.cells.values())
-
-    async def _write_to_file(self, f, front, back):
-        f.write(front)
-        try:
-            for hashid, cell in self._document.cells.items():
-                if isinstance(cell, CodeCell):
-                    await cell.wait_for()
-                f.write(cell.html)
-        except Exception:
-            raise
-        else:
-            f.write(back)
-
-    async def _printer(self) -> None:
-        index = self._server.get_index('__CELLS__')
-        front, back = index.split('__CELLS__')
-        await self._kernel.wait_for_start()
-        for hashid, cell in self._document.cells.items():
-            if isinstance(cell, CodeCell):
-                self._kernel.execute(cell.hashid, cell.code)
-        if self._output_given:
-            with self.output.open('w') as f:
-                await self._write_to_file(f, front, back)
-        else:
-            await self._write_to_file(sys.stdout, front, back)
