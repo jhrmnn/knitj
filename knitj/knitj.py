@@ -30,10 +30,11 @@ from typing import Set, Dict, List, Optional, Any, IO, Iterable  # noqa
 log = logging.getLogger('knitj')
 
 
-def render_index(cells: str, client: bool = True) -> str:
+def render_index(title: str, cells: str, client: bool = True) -> str:
     index = resource_string('knitj', 'client/templates/index.html').decode()
     template = Template(index)
     return template.render(
+        title=title,
         cells=cells,
         styles='\n'.join(chain(
             [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
@@ -45,7 +46,7 @@ def render_index(cells: str, client: bool = True) -> str:
 
 async def convert(source: IO[str], output: IO[str], fmt: str,
                   kernel_name: str = None) -> None:
-    front, back = render_index('__CELLS__', client=False).split('__CELLS__')
+    front, back = render_index('', '__CELLS__', client=False).split('__CELLS__')
     output.write(front)
     parser = Parser(fmt)
     cells = parser.parse(source.read())
@@ -143,7 +144,7 @@ class KnitjServer:
 
     def get_index(self, client: bool = True) -> str:
         cells = '\n'.join(cell.html for cell in self._document.cells.values())
-        return render_index(cells, client=client)
+        return render_index('', cells, client=client)
 
     def _kernel_handler(self, msg: jupy.Message, hashid: Hash) -> None:
         cell = self._document.process_message(msg, hashid)

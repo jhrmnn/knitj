@@ -25,11 +25,11 @@ async def handler(request: web.Request) -> web.Response:
     if request.path == '/ws':
         ws = web.WebSocketResponse(autoclose=False)
         await ws.prepare(request)
-        log.info(f'Notebook connected: {id(ws)}')
+        log.info(f'Browser connected: {id(ws)}')
         app['nb_wss'].add(ws)
         async for msg in ws:
             app['nb_msg_handler'](msg.json())
-        log.info(f'Notebook disconnected: {id(ws)}')
+        log.info(f'Browser disconnected: {id(ws)}')
         app['nb_wss'].remove(ws)
         return ws
     raise web.HTTPNotFound()
