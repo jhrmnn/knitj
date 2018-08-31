@@ -36,19 +36,19 @@ class FileChangedHandler(FileSystemEventHandler):
 
 class SourceWatcher:
     def __init__(self, handler: Callable[[str], None], path: os.PathLike) -> None:
-        self.path = Path(path)
+        self._path = Path(path)
         self._handler = handler
         self._file_change: 'Queue[str]' = Queue()
         self._observer = Observer()
         self._observer.schedule(
             FileChangedHandler(queue=self._file_change),
-            str(self.path.parent)
+            str(self._path.parent)
         )
 
     async def run(self) -> None:
         self._observer.start()
-        log.info(f'Started watching file {self.path} for changes')
+        log.info(f'Started watching file {self._path} for changes')
         while True:
             file = Path(await self._file_change.get())
-            if file == self.path:
+            if file == self._path:
                 self._handler(file.read_text())

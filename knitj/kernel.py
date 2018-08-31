@@ -20,15 +20,16 @@ log = logging.getLogger('knitj.kernel')
 class Kernel:
     def __init__(self, handler: Callable[[jupy.Message, Hash], object],
                  kernel: str = None) -> None:
-        self.handler = handler
-        self.kernel = kernel or 'python3'
+        self._handler = handler
+        self._kernel_name = kernel or 'python3'
         self._hashids: Dict[UUID, Hash] = {}
         self._msg_queue: 'asyncio.Queue[Dict]' = asyncio.Queue()
         self._loop = asyncio.get_event_loop()
 
     def start(self) -> None:
         log.info('Starting kernel...')
-        self._kernel = jupyter_client.KernelManager(kernel_name=self.kernel)
+        self._kernel = \
+            jupyter_client.KernelManager(kernel_name=self._kernel_name)
         self._kernel.start_kernel()
         self._client = self._kernel.client()
         log.info('Kernel started')
@@ -70,7 +71,7 @@ class Kernel:
                 hashid = None
                 log.warn('message with no header')
             if hashid:
-                self.handler(msg, hashid)
+                self._handler(msg, hashid)
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:

@@ -20,9 +20,8 @@ from .kernel import Kernel
 from .source import SourceWatcher
 from .webserver import init_webapp
 from .parser import Parser
-from .cell import CodeCell
 from .document import Document
-from .cell import BaseCell, Hash  # noqa
+from .cell import Hash, CodeCell
 from . import jupyter_messaging as jupy
 
 from typing import Set, Dict, List, Optional, Any, IO, Iterable  # noqa
@@ -49,10 +48,10 @@ async def convert(source: IO[str], output: IO[str], fmt: str,
     kernel.start()
     front, back = render_index('', '__CELLS__', client=False).split('__CELLS__')
     output.write(front)
-    for hashid, cell in document.cells.items():
+    for hashid, cell in document.items():
         if isinstance(cell, CodeCell):
             kernel.execute(cell.hashid, cell.code)
-    for hashid, cell in document.cells.items():
+    for hashid, cell in document.items():
         if isinstance(cell, CodeCell):
             await cell.wait_for()
         output.write(cell.html)
@@ -134,7 +133,7 @@ class KnitjServer:
         self.output.write_text(self.get_index(client=False))
 
     def get_index(self, client: bool = True) -> str:
-        cells = '\n'.join(cell.html for cell in self._document.cells.values())
+        cells = '\n'.join(cell.html for cell in self._document)
         return render_index('', cells, client=client)
 
     def _kernel_handler(self, msg: jupy.Message, hashid: Hash) -> None:
@@ -151,7 +150,7 @@ class KnitjServer:
         if msg['kind'] == 'reevaluate':
             log.info('Will reevaluate a cell')
             hashid = msg['hashid']
-            cell = self._document.cells[hashid]
+            cell = self._document[hashid]
             assert isinstance(cell, CodeCell)
             cell.reset()
             self._kernel.execute(hashid, cell.code)
@@ -172,7 +171,7 @@ class KnitjServer:
         )
         self.update_all(dict(
             kind='document',
-            hashids=list(self._document.cells),
+            hashids=self._document.hashes(),
             htmls={cell.hashid: cell.html for cell in new_cells + updated_cells},
         ))
         for cell in new_cells:

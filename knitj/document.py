@@ -4,14 +4,14 @@
 import logging
 from collections import OrderedDict
 
-from typing import List, Optional, Tuple
-
 import ansi2html
 from bs4 import BeautifulSoup
 
-from .cell import BaseCell, Hash, CodeCell
 from . import jupyter_messaging as jupy
 from .jupyter_messaging.content import MIME
+
+from typing import List, Optional, Tuple, Iterator
+from .cell import BaseCell, Hash, CodeCell
 
 ansi_convert = ansi2html.Ansi2HTMLConverter().convert
 log = logging.getLogger('knitj.document')
@@ -19,12 +19,24 @@ log = logging.getLogger('knitj.document')
 
 class Document:
     def __init__(self, cells: List[BaseCell]) -> None:
-        self.cells = OrderedDict((cell.hashid, cell) for cell in cells)
+        self._cells = OrderedDict((cell.hashid, cell) for cell in cells)
+
+    def items(self) -> Iterator[Tuple[Hash, BaseCell]]:
+        yield from self._cells.items()
+
+    def __iter__(self) -> Iterator[BaseCell]:
+        yield from self._cells.values()
+
+    def __getitem__(self, hashid: Hash) -> BaseCell:
+        return self._cells[hashid]
+
+    def hashes(self) -> List[Hash]:
+        return list(self._cells)
 
     def process_message(self, msg: jupy.Message, hashid: Hash
                         ) -> Optional[BaseCell]:
         try:
-            cell = self.cells[hashid]
+            cell = self._cells[hashid]
         except KeyError:
             log.warning('Cell does not exist anymore')
             return None
@@ -68,8 +80,8 @@ class Document:
         if not cells_tag:
             return
         for cell_tag in cells_tag.find_all('div', class_='code-cell'):
-            if cell_tag.attrs['class'][0] in self.cells:
-                cell = self.cells[Hash(cell_tag.attrs['class'][0])]
+            if cell_tag.attrs['class'][0] in self._cells:
+                cell = self._cells[Hash(cell_tag.attrs['class'][0])]
                 assert isinstance(cell, CodeCell)
                 cell.set_output({
                     MIME.TEXT_HTML: str(cell_tag.find(class_='output'))
@@ -79,16 +91,13 @@ class Document:
                 if 'hide' in cell_tag.attrs['class']:
                     cell.flags.add('hide')
 
-    def load_from_input(self, src: str) -> None:
-        pass
-
     def update_from_cells(self, cells: List[BaseCell]
                           ) -> Tuple[List[BaseCell], List[BaseCell]]:
         new_cells = []
         updated_cells: List[BaseCell] = []
         for cell in cells:
-            if cell.hashid in self.cells:
-                old_cell = self.cells[cell.hashid]
+            if cell.hashid in self._cells:
+                old_cell = self._cells[cell.hashid]
                 if isinstance(old_cell, CodeCell):
                     assert isinstance(cell, CodeCell)
                     if old_cell.update_flags(cell):
@@ -97,7 +106,7 @@ class Document:
                 if isinstance(cell, CodeCell):
                     cell._flags.add('evaluating')
                 new_cells.append(cell)
-        self.cells = OrderedDict(
-            (cell.hashid, self.cells.get(cell.hashid, cell)) for cell in cells
+        self._cells = OrderedDict(
+            (cell.hashid, self._cells.get(cell.hashid, cell)) for cell in cells
         )
         return new_cells, updated_cells
