@@ -19,7 +19,7 @@ from pygments.styles import get_style_by_name
 
 from .kernel import Kernel
 from .source import Source
-from .server import Server
+from .webserver import WebServer
 from .parser import Parser
 from .cell import CodeCell
 from .document import Document
@@ -93,12 +93,12 @@ class KnitjServer:
         self.output = Path(output)
         self._browser = browser
         self._kernel = Kernel(self._kernel_handler, kernel)
-        self._server = Server(
+        self._webserver = WebServer(
             self._get_index, self._nb_msg_handler
         )
         self._parser = Parser(fmt)
         self._runners: List[asyncio.Future] = []
-        self._broadcaster = Broadcaster(self._server._notebooks)
+        self._broadcaster = Broadcaster(self._webserver._nb_wss)
         if self.source.exists():
             cells = self._parser.parse(self.source.read_text())
         else:
@@ -108,7 +108,7 @@ class KnitjServer:
             self._document.load_output_from_html(self.output.read_text())
 
     async def start(self) -> None:
-        port = await self._server.start()
+        port = await self._webserver.start()
         if self._browser:
             self._browser.open(f'http://localhost:{port}')
         self._runners.extend([
@@ -128,7 +128,7 @@ class KnitjServer:
         ))
 
     async def cleanup(self) -> None:
-        await self._server._runner.cleanup()
+        await self._webserver._runner.cleanup()
         for runner in self._runners:
             runner.cancel()
             try:

@@ -12,11 +12,11 @@ from typing import Callable, Awaitable, Optional, Dict, Set  # noqa
 log = logging.getLogger('knitj.server')
 
 
-class Server:
+class WebServer:
     def __init__(self, get_index: Callable[[], str],
                  nb_msg_handler: Callable[[Dict], None]) -> None:
         self.get_index = get_index
-        self._notebooks: 'WeakSet[web.WebSocketResponse]' = WeakSet()
+        self._nb_wss: 'WeakSet[web.WebSocketResponse]' = WeakSet()
         self._nb_msg_handler = nb_msg_handler
         self._app = web.Application()
         self._app.router.add_static('/static', resource_filename('knitj', 'client/static'))
@@ -26,7 +26,7 @@ class Server:
         self._runner = web.AppRunner(self._app)
 
     async def _on_shutdown(self, app):
-        for ws in set(self._notebooks):
+        for ws in set(self._nb_wss):
             await ws.close(code=WSCloseCode.GOING_AWAY, message='Server shutdown')
 
     def _get_response(self, text: str) -> web.Response:
@@ -39,11 +39,11 @@ class Server:
             ws = web.WebSocketResponse(autoclose=False)
             await ws.prepare(request)
             log.info(f'Notebook connected: {id(ws)}')
-            self._notebooks.add(ws)
+            self._nb_wss.add(ws)
             async for msg in ws:
                 self._nb_msg_handler(msg.json())
             log.info(f'Notebook disconnected: {id(ws)}')
-            self._notebooks.remove(ws)
+            self._nb_wss.remove(ws)
             return ws
         raise web.HTTPNotFound()
 
