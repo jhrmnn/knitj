@@ -2,6 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import os
+import logging
 from pathlib import Path
 import asyncio
 from asyncio import Queue
@@ -11,6 +12,8 @@ from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
 from typing import Set, Callable  # noqa
 from .cell import Hash  # noqa
+
+log = logging.getLogger('knitj.source')
 
 
 class FileChangedHandler(FileSystemEventHandler):
@@ -31,10 +34,10 @@ class FileChangedHandler(FileSystemEventHandler):
         self._queue_modified(event)
 
 
-class Source:
+class SourceWatcher:
     def __init__(self, handler: Callable[[str], None], path: os.PathLike) -> None:
-        self.handler = handler
         self.path = Path(path)
+        self._handler = handler
         self._file_change: 'Queue[str]' = Queue()
         self._observer = Observer()
         self._observer.schedule(
@@ -44,7 +47,8 @@ class Source:
 
     async def run(self) -> None:
         self._observer.start()
+        log.info(f'Started watching file {self.path} for changes')
         while True:
             file = Path(await self._file_change.get())
             if file == self.path:
-                self.handler(file.read_text())
+                self._handler(file.read_text())
