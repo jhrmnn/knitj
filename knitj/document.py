@@ -46,14 +46,17 @@ class Document:
                 cell.set_error(html)
             elif isinstance(msg.content, jupy.content.OK):
                 log.info('Got an execution reply')
-                cell.set_done()
         elif isinstance(msg, jupy.ERROR):
             log.info('Got an error')
             html = ansi_convert(
                 '\n'.join(msg.content.traceback), full=False
             )
             cell.set_error(html)
-        elif isinstance(msg, (jupy.STATUS, jupy.EXECUTE_INPUT)):
+        elif isinstance(msg, jupy.STATUS):
+            if msg.content.execution_state == jupy.content.State.IDLE:
+                log.info('Cell done')
+                cell.set_done()
+        elif isinstance(msg, jupy.EXECUTE_INPUT):
             pass
         else:
             raise ValueError(f'Unknown message type: {type(msg)}')
