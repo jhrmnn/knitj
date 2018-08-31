@@ -102,6 +102,9 @@ class CodeCell(BaseCell):
         return update
 
     def append_stream(self, s: str) -> None:
+        if s[0] == '\r':
+            self._stream = '\n'.join(self._stream.split('\n')[:-1])
+            s = s[1:]
         self._stream += s
         self._html = None
 
