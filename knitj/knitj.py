@@ -8,7 +8,6 @@ import webbrowser
 import json
 import logging
 from itertools import chain
-# from collections import OrderedDict
 from pkg_resources import resource_string
 
 from aiohttp import web
@@ -23,10 +22,10 @@ from .webserver import init_webapp
 from .parser import Parser
 from .cell import CodeCell
 from .document import Document
-
-from typing import Set, Dict, List, Optional, Any, IO, Iterable  # noqa
 from .cell import BaseCell, Hash  # noqa
 from . import jupyter_messaging as jupy
+
+from typing import Set, Dict, List, Optional, Any, IO, Iterable  # noqa
 
 log = logging.getLogger('knitj')
 
@@ -127,6 +126,15 @@ class KnitjServer:
             asyncio.ensure_future(Source(self._source_handler, self.source).run()),
         ])
 
+    async def cleanup(self) -> None:
+        await self._webrunner.cleanup()
+        for runner in self._runners:
+            runner.cancel()
+            try:
+                await runner
+            except asyncio.CancelledError:
+                pass
+
     def _kernel_handler(self, msg: jupy.Message, hashid: Hash) -> None:
         cell = self._document.process_message(msg, hashid)
         if not cell:
@@ -136,15 +144,6 @@ class KnitjServer:
             hashid=cell.hashid,
             html=cell.html,
         ))
-
-    async def cleanup(self) -> None:
-        await self._webrunner.cleanup()
-        for runner in self._runners:
-            runner.cancel()
-            try:
-                await runner
-            except asyncio.CancelledError:
-                pass
 
     def _nb_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':

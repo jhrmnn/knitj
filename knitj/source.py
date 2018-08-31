@@ -21,7 +21,7 @@ class FileChangedHandler(FileSystemEventHandler):
 
     def _queue_modified(self, event: FileSystemEvent) -> None:
         # Must be done this way because watchdog doesn't support asyncio
-        # and the on_modified, on_created functions are blocking
+        # and the on_modified, on_created functions are run in different thread
         self._loop.call_soon_threadsafe(self._queue.put_nowait, event.src_path)
 
     def on_modified(self, event: FileSystemEvent) -> None:
