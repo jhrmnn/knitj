@@ -41,9 +41,8 @@ def render_index(title: str, cells: str, client: bool = True) -> str:
 
 async def convert(source: IO[str], output: IO[str], fmt: str,
                   kernel_name: str = None) -> None:
-    parser = Parser(fmt)
-    cells = parser.parse(source.read())
-    document = Document(cells)
+    document = Document(Parser(fmt))
+    document.update_from_source(source.read())
     kernel = Kernel(document.process_message, kernel_name)
     kernel.start()
     front, back = render_index('', '__CELLS__', client=False).split('__CELLS__')
@@ -88,13 +87,10 @@ class KnitjServer:
         self._webrunner = web.AppRunner(app)
         self._broadcaster = Broadcaster(app['nb_wss'])
         self._watcher = SourceWatcher(self._source_handler, self.source)
-        self._parser = Parser(fmt)
         self._tasks: List[asyncio.Future] = []
+        self._document = Document(Parser(fmt))
         if self.source.exists():
-            cells = self._parser.parse(self.source.read_text())
-        else:
-            cells = []
-        self._document = Document(cells)
+            self._document.update_from_source(self.source.read_text())
         if self.output.exists():
             self._document.load_output_from_html(self.output.read_text())
 
@@ -163,15 +159,15 @@ class KnitjServer:
             raise ValueError(f'Unkonwn message: {msg["kind"]}')
 
     def _source_handler(self, src: str) -> None:
-        cells = self._parser.parse(src)
-        new_cells, updated_cells = self._document.update_from_cells(cells)
+        doc = self._document
+        new_cells, updated_cells = doc.update_from_source(src)
         log.info(
-            f'File change: {len(new_cells)}/{len(cells)} new cells, '
-            f'{len(updated_cells)}/{len(cells)} updated cells'
+            f'File change: {len(new_cells)}/{len(doc)} new cells, '
+            f'{len(updated_cells)}/{len(doc)} updated cells'
         )
         self.update_all(dict(
             kind='document',
-            hashids=self._document.hashes(),
+            hashids=doc.hashes(),
             htmls={cell.hashid: cell.html for cell in new_cells + updated_cells},
         ))
         for cell in new_cells:

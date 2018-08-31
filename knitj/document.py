@@ -7,10 +7,11 @@ from collections import OrderedDict
 import ansi2html
 from bs4 import BeautifulSoup
 
+from .parser import Parser
 from . import jupyter_messaging as jupy
 from .jupyter_messaging.content import MIME
 
-from typing import List, Optional, Tuple, Iterator
+from typing import List, Optional, Tuple, Iterator, Dict
 from .cell import BaseCell, Hash, CodeCell
 
 ansi_convert = ansi2html.Ansi2HTMLConverter().convert
@@ -18,8 +19,9 @@ log = logging.getLogger('knitj.document')
 
 
 class Document:
-    def __init__(self, cells: List[BaseCell]) -> None:
-        self._cells = OrderedDict((cell.hashid, cell) for cell in cells)
+    def __init__(self, parser: Parser) -> None:
+        self._parser = parser
+        self._cells: Dict[Hash, BaseCell] = OrderedDict()
 
     def items(self) -> Iterator[Tuple[Hash, BaseCell]]:
         yield from self._cells.items()
@@ -29,6 +31,9 @@ class Document:
 
     def __getitem__(self, hashid: Hash) -> BaseCell:
         return self._cells[hashid]
+
+    def __len__(self) -> int:
+        return len(self._cells)
 
     def hashes(self) -> List[Hash]:
         return list(self._cells)
@@ -91,8 +96,9 @@ class Document:
                 if 'hide' in cell_tag.attrs['class']:
                     cell.flags.add('hide')
 
-    def update_from_cells(self, cells: List[BaseCell]
-                          ) -> Tuple[List[BaseCell], List[BaseCell]]:
+    def update_from_source(self, source: str
+                           ) -> Tuple[List[BaseCell], List[BaseCell]]:
+        cells = self._parser.parse(source)
         new_cells = []
         updated_cells: List[BaseCell] = []
         for cell in cells:
