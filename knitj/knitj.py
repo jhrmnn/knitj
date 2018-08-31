@@ -5,11 +5,13 @@ import os
 from pathlib import Path
 import asyncio
 import webbrowser
+import json
 import logging
 from itertools import chain
 # from collections import OrderedDict
 from pkg_resources import resource_string
 
+from aiohttp import web
 import ansi2html
 from jinja2 import Template
 from pygments.formatters import HtmlFormatter
@@ -22,7 +24,7 @@ from .parser import Parser
 from .cell import CodeCell
 from .document import Document
 
-from typing import Set, Dict, List, Optional, Any, IO  # noqa
+from typing import Set, Dict, List, Optional, Any, IO, Iterable  # noqa
 from .cell import BaseCell, Hash  # noqa
 from . import jupyter_messaging as jupy
 
@@ -67,18 +69,36 @@ async def convert(source: IO[str], output: IO[str], fmt: str,
         pass
 
 
+class Broadcaster:
+    def __init__(self, wss: Iterable[web.WebSocketResponse]) -> None:
+        self._wss = wss
+        self._queue: 'asyncio.Queue[Dict]' = asyncio.Queue()
+
+    def broadcast(self, msg: Dict) -> None:
+        self._queue.put_nowait(msg)
+
+    async def run(self) -> None:
+        while True:
+            msg = await self._queue.get()
+            data = json.dumps(msg)
+            for ws in self._wss:
+                await ws.send_str(data)
+
+
 class KnitjServer:
     def __init__(self, source: os.PathLike, output: os.PathLike, fmt: str,
                  browser: webbrowser.BaseBrowser = None,
                  kernel: str = None) -> None:
         self.source = Path(source)
         self.output = Path(output)
+        self._browser = browser
         self._kernel = Kernel(self._kernel_handler, kernel)
         self._server = Server(
-            self._get_index, self._nb_msg_handler, browser=browser
+            self._get_index, self._nb_msg_handler
         )
         self._parser = Parser(fmt)
         self._runners: List[asyncio.Future] = []
+        self._broadcaster = Broadcaster(self._server._notebooks)
         if self.source.exists():
             cells = self._parser.parse(self.source.read_text())
         else:
@@ -87,10 +107,13 @@ class KnitjServer:
         if self.output.exists():
             self._document.load_output_from_html(self.output.read_text())
 
-    def start(self) -> None:
+    async def start(self) -> None:
+        port = await self._server.start()
+        if self._browser:
+            self._browser.open(f'http://localhost:{port}')
         self._runners.extend([
             asyncio.ensure_future(self._kernel.run()),
-            asyncio.ensure_future(self._server.run()),
+            asyncio.ensure_future(self._broadcaster.run()),
             asyncio.ensure_future(Source(self._source_handler, self.source).run()),
         ])
 
@@ -130,7 +153,7 @@ class KnitjServer:
             raise ValueError(f'Unkonwn message: {msg["kind"]}')
 
     def _broadcast(self, msg: Dict) -> None:
-        self._server.broadcast(msg)
+        self._broadcaster.broadcast(msg)
         self.output.write_text(self._get_index(client=False))
 
     def _source_handler(self, src: str) -> None:

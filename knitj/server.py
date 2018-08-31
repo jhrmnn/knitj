@@ -1,9 +1,6 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
-import json
-from asyncio import Queue
-import webbrowser
 import logging
 from weakref import WeakSet
 from pkg_resources import resource_filename
@@ -17,13 +14,10 @@ log = logging.getLogger('knitj.server')
 
 class Server:
     def __init__(self, get_index: Callable[[], str],
-                 nb_msg_handler: Callable[[Dict], None],
-                 browser: webbrowser.BaseBrowser = None) -> None:
+                 nb_msg_handler: Callable[[Dict], None]) -> None:
         self.get_index = get_index
         self._notebooks: 'WeakSet[web.WebSocketResponse]' = WeakSet()
-        self._browser = browser
         self._nb_msg_handler = nb_msg_handler
-        self._msg_queue: 'Queue[Dict]' = Queue()
         self._app = web.Application()
         self._app.router.add_static('/static', resource_filename('knitj', 'client/static'))
         self._app.router.add_get('/', self.handler)
@@ -37,16 +31,6 @@ class Server:
 
     def _get_response(self, text: str) -> web.Response:
         return web.Response(text=text, content_type='text/html')
-
-    def broadcast(self, msg: Dict) -> None:
-        self._msg_queue.put_nowait(msg)
-
-    async def _broadcaster(self) -> None:
-        while True:
-            msg = await self._msg_queue.get()
-            data = json.dumps(msg)
-            for ws in self._notebooks:
-                await ws.send_str(data)
 
     async def handler(self, request: web.Request) -> web.Response:
         if request.path == '/':
@@ -63,7 +47,7 @@ class Server:
             return ws
         raise web.HTTPNotFound()
 
-    async def run(self) -> None:
+    async def start(self) -> int:
         await self._runner.setup()
         for port in range(8080, 8100):
             try:
@@ -76,6 +60,4 @@ class Server:
         else:
             raise RuntimeError('No available port')
         log.info(f'Started web server on port {port}')
-        if self._browser:
-            self._browser.open(f'http://localhost:{port}')
-        await self._broadcaster()
+        return port

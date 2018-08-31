@@ -53,7 +53,7 @@ def main() -> None:
         app = KnitjServer(
             args.source, output, fmt, args.browser, args.kernel
         )
-        app.start()
+        loop.run_until_complete(app.start())
         try:
             loop.run_forever()
         except KeyboardInterrupt:
