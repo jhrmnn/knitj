@@ -1,8 +1,12 @@
-# KnitJ — Evaluate Markdown in Jupyter kernels
+# KnitJ — Literate programming with Jupyter kernels
 
-Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), KnitJ dynamically renders regular Markdown into HTML and evaluates Python code cells in an IPython kernel. The source Markdown file is watched for changes, and any changed code cells are reevaluated and propagated to the browser via WebSocket.
+Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), KnitJ renders a mix of markdown and source code into HTML by evaluating the code in a Jupyter kernel.
 
-The following markdown snippet,
+In addition to a one-off conversion, KnitJ can serve the HTML document via HTTP and watch the source file for changes. When the source file is changed, KnitJ reevaluates only the changed bits (defined by boundaries between markdown and source code), and pushes the updates into the HTML document via WebSocket.
+
+## Example
+
+Either of the two following files renders into the same HTML document below with `knitj $SOURCE >$SOURCE.html`.
 
     ```python
     #::hide
@@ -22,29 +26,48 @@ The following markdown snippet,
     plt.plot(x, np.sin(x)/x)
     ```
 
-renders into the following HTML,
+```python
+# ::hide
+import numpy as np
+from matplotlib import pyplot as plt
+# ::%matplotlib inline
 
-![](doc/static/example.png)
+# ::>
+# ## Example
+#
+# Let's plot
+#
+# $$ f(x)=\frac{\sin x}x $$
 
-Reevaluation of code cells can be also triggered from the browser.
+x = np.linspace(-20, 20, 200)
+plt.plot(x, np.sin(x)/x)
+```
 
-## Motivation
+![](docs/static/example.png)
 
-Jupyter notebooks mix source code and generated output, which has two disadvantages:
-
--    Source code management of the notebooks is impractical.
--    One cannot use one's favourite editor to edit the notebooks.
-
-## Installation
+Alternatively, one can start the KnitJ server, which starts watching the source file for changes and opens a browser window with the rendered and live-updated HTML document
 
 ```
-pip3 install git+https://github.com/azag0/knitj.git
+$ knitj --server test.py
+INFO:knitj:Started web server on port 8080
+INFO:knitj.kernel:Starting kernel...
+INFO:knitj.kernel:Kernel started
+INFO:knitj:Started broadcasting to kernels
+INFO:knitj.source:Started watching file test.py for changes
+INFO:knitj.webserver:Browser connected: 4580648496
+```
+
+## Installing
+
+Install with Pip from Github. Requires Python 3.6 or higher.
+
+```
+pip install git+https://github.com/azag0/knitj.git
 ```
 
 The following dependencies are installed:
 
--   [IPython](https://github.com/ipython/ipykernel) Jupyter kernel for evaluating Python code cells
--   [Jupyter Client](https://github.com/jupyter/jupyter_client) for communicating with the IPython kernel
+-   [Jupyter Client](https://github.com/jupyter/jupyter_client) for communicating with the Jupyter kernels
 -   [Watchdog](https://pythonhosted.org/watchdog/) for watching a file for changes
 -   [ansi2html](https://github.com/ralphbean/ansi2html) for converting ANSI color codes into HTML
 -   [Misaka](http://misaka.61924.nl) for rendering Markdown
@@ -53,14 +76,8 @@ The following dependencies are installed:
 -   [Jinja](http://jinja.pocoo.org) for HTML templates
 -   [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/) for parsing HTML
 
-## Usage
+To use KnitJ, you also need some Jupyter kernel on your system. If you don’t have one, you can get the IPython kernel with
 
 ```
-knitj source.md
+pip install ipykernel
 ```
-
-This command starts watching `source.md` for changes, and opens a browser window with the rendered HTML. No Python is evaluated at this point. To evaluate the whole source file, click on `Evaluate from here` of the top code cell. `source.html` is automatically created, and all changes displayed in the browser are also saved there. When restarting , all previous output is reused from `source.html` if it exists.
-
-`source.md` can now be edited with any editor. On saving, KnitJ reads it, and sends any changed code cells to the IPython kernel for evaluation. (Markdown changes are also propagated.)
-
-See `knitj -h` for all options.

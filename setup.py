@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='knitj',
-    version='0.1',
+    version='0.2',
     description='Alternative Jupyter front-end',
     author='Jan Hermann',
     author_email='dev@janhermann.cz',
