@@ -4,6 +4,7 @@
 from argparse import ArgumentParser
 import asyncio
 from pathlib import Path
+import logging
 
 import webbrowser
 
@@ -26,6 +27,7 @@ def parse_cli() -> dict:
 
 def main() -> None:
     kwargs = parse_cli()
+    logging.basicConfig(level=logging.INFO)
     server_mode = kwargs.pop('server')
     if not server_mode:
         kwargs['quiet'] = True
