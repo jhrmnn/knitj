@@ -27,7 +27,8 @@ class Server:
 
 
 class Router:
-    def add_static(self, prefix: str, path: str) -> None: ...
+    def add_static(self, prefix: str, path: str, append_version: bool = False
+                   ) -> None: ...
     def add_get(self, path: str, handler: Handler) -> None: ...
 
 

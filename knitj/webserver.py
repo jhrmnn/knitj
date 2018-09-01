@@ -41,7 +41,11 @@ def init_webapp(get_index: Callable[[], str],
         app['get_index'] = get_index
         app['ws_msg_handler'] = ws_msg_handler
         app['wss'] = WeakSet()
-        app.router.add_static('/static', resource_filename('knitj', 'client/static'))
+        app.router.add_static(
+            '/static',
+            resource_filename('knitj', 'client/static'),
+            append_version=True,
+        )
         app.router.add_get('/', handler)
         app.router.add_get('/ws', handler)
         app.on_shutdown.append(on_shutdown)
