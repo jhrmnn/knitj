@@ -109,8 +109,6 @@ class Document:
                     if old_cell.update_flags(cell):
                         updated_cells.append(old_cell)
             else:
-                if isinstance(cell, CodeCell):
-                    cell._flags.add('evaluating')
                 new_cells.append(cell)
         self._cells = OrderedDict(
             (cell.hashid, self._cells.get(cell.hashid, cell)) for cell in cells

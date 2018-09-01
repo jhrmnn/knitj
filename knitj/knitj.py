@@ -165,6 +165,9 @@ class KnitjServer:
             f'File change: {len(new_cells)}/{len(doc)} new cells, '
             f'{len(updated_cells)}/{len(doc)} updated cells'
         )
+        for cell in new_cells:
+            if isinstance(cell, CodeCell):
+                cell._flags.add('evaluating')
         self.update_all(dict(
             kind='document',
             hashids=doc.hashes(),
