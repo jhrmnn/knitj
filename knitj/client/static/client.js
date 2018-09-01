@@ -16,17 +16,13 @@ function elemFromHtml(html) {
   div.innerHTML = html;
   const el = div.childNodes[0];
   Array.from(el.getElementsByTagName('script')).forEach((scr) => {
-    parent = scr.parentElement;
-    scrNew = document.createElement('script');
+    const parentEl = scr.parentElement;
+    const scrNew = document.createElement('script');
     scrNew.textContent = scr.textContent;
-    parent.insertBefore(scrNew, scr);
-    parent.removeChild(scr);
+    parentEl.insertBefore(scrNew, scr);
+    parentEl.removeChild(scr);
   });
-  return el
-}
-
-function $(query) {
-  return document.querySelector(query);
+  return el;
 }
 
 const ws = new WebSocket(`ws://${document.location.host}/ws`);
