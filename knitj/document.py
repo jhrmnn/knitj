@@ -22,7 +22,6 @@ class Document:
     def __init__(self, parser: Parser) -> None:
         self._parser = parser
         self._cells: Dict[Hash, BaseCell] = OrderedDict()
-        self._was_updated = False
 
     def items(self) -> Iterator[Tuple[Hash, BaseCell]]:
         yield from self._cells.items()
@@ -85,9 +84,12 @@ class Document:
         cells_tag = soup.find(id='cells')
         if not cells_tag:
             return
+        n_loaded = 0
         for cell_tag in cells_tag.find_all('div', class_='code-cell'):
-            if cell_tag.attrs['class'][0] in self._cells:
-                cell = self._cells[Hash(cell_tag.attrs['class'][0])]
+            hashid = Hash(cell_tag.attrs['class'][0])
+            if hashid in self._cells:
+                n_loaded += 1
+                cell = self._cells[hashid]
                 assert isinstance(cell, CodeCell)
                 cell.set_output({
                     MIME.TEXT_HTML: str(cell_tag.find(class_='output'))
@@ -96,6 +98,7 @@ class Document:
                     cell.set_done()
                 if 'hide' in cell_tag.attrs['class']:
                     cell.flags.add('hide')
+        log.info(f'{n_loaded} code cells loaded from output')
 
     def update_from_source(self, source: str
                            ) -> Tuple[List[BaseCell], List[BaseCell]]:
@@ -113,17 +116,15 @@ class Document:
                         cells_with_updated_flags.append(old_cell)
             else:
                 new_cells.append(cell)
-        if self._was_updated:
-            n_dropped = sum(hashid not in cells for hashid in self._cells)
-            log.info(
-                f'File change: {len(new_cells)}/{len(self)} new cells, '
-                f'{n_dropped} dropped'
-            )
+        n_dropped = sum(hashid not in cells for hashid in self._cells)
+        log.info(
+            f'File change: {len(new_cells)}/{len(self)} new cells, '
+            f'{n_dropped} dropped'
+        )
         cells = OrderedDict(
             (hashid, self._cells.get(hashid, cell))
             for hashid, cell in cells.items()
         )
         self._cells.clear()
         self._cells.update(cells)
-        self._was_updated = True
         return new_cells, new_cells + cells_with_updated_flags

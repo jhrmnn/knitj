@@ -26,7 +26,7 @@ from . import jupyter_messaging as jupy
 
 from typing import Set, Dict, List, Optional, Any, IO, Iterable  # noqa
 
-log = logging.getLogger('knitj')
+log = logging.getLogger('knitj.knitj')
 
 
 def render_index(title: str, cells: str, client: bool = True) -> str:
@@ -50,6 +50,7 @@ async def convert(source: IO[str], output: IO[str], fmt: str,
     for hashid, cell in document.items():
         if isinstance(cell, CodeCell):
             kernel.execute(cell.hashid, cell.code)
+    log.info('Code cells submitted to kernel')
     for hashid, cell in document.items():
         if isinstance(cell, CodeCell):
             await cell.wait_for()

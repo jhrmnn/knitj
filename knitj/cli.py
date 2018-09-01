@@ -15,6 +15,14 @@ from typing import Optional, Iterator, IO
 
 from .knitj import KnitjServer, convert
 
+logging.basicConfig(
+    style='{',
+    format='[{asctime}.{msecs:03.0f}] {levelname}:{name}: {message}',
+    datefmt='%H:%M:%S',
+)
+log = logging.getLogger('knitj')
+log.setLevel(logging.INFO)
+
 
 def parse_cli() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
@@ -32,6 +40,7 @@ def parse_cli() -> argparse.Namespace:
 
 
 def main() -> None:
+    log.info('Entered Knitj')
     args = parse_cli()
     fmt: Optional[str] = None
     if args.format:
@@ -43,7 +52,6 @@ def main() -> None:
             fmt = 'markdown'
     if not fmt:
         raise RuntimeError('Cannot determine input format')
-    logging.basicConfig(level=logging.INFO)
     loop = asyncio.get_event_loop()
     # hack to catch exceptions from kernel channels that run in threads
     executor = concurrent.futures.ThreadPoolExecutor()
@@ -69,6 +77,7 @@ def main() -> None:
             loop.run_until_complete(convert(source, output, fmt, args.kernel))
     executor.shutdown(wait=True)
     loop.close()
+    log.info('Leaving Knitj')
 
 
 @contextmanager

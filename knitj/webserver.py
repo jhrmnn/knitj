@@ -13,6 +13,7 @@ log = logging.getLogger('knitj.webserver')
 
 
 async def on_shutdown(app: web.Application) -> None:
+    log.info('Closing websockets')
     ws: web.WebSocketResponse
     for ws in set(app['wss']):
         await ws.close(code=WSCloseCode.GOING_AWAY, message='Server shutdown')

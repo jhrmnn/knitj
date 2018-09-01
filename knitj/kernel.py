@@ -69,7 +69,8 @@ class Kernel:
                     self._hashids.get(msg.parent_header.msg_id)
             else:
                 hashid = None
-                log.warn('message with no header')
+                log.warn('message with no parent header')
+                log.info(msg)
             if hashid:
                 self._handler(msg, hashid)
 
