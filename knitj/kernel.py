@@ -12,7 +12,7 @@ from .cell import Hash
 from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
 
-from typing import Dict, Optional, Callable
+from typing import Dict, Callable
 
 log = logging.getLogger('knitj.kernel')
 

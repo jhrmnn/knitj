@@ -140,14 +140,14 @@ class KnitjServer:
             return
         self.update_all(dict(
             kind='cell',
-            hashid=cell.hashid,
+            hashid=cell.hashid.value,
             html=cell.html,
         ))
 
     def _ws_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
             log.info('Will reevaluate a cell')
-            hashid = msg['hashid']
+            hashid = Hash(msg['hashid'])
             cell = self._document[hashid]
             assert isinstance(cell, CodeCell)
             cell.reset()
@@ -168,8 +168,8 @@ class KnitjServer:
                 cell._flags.add('evaluating')
         self.update_all(dict(
             kind='document',
-            hashids=doc.hashes(),
-            htmls={cell.hashid: cell.html for cell in updated_cells},
+            hashids=[hashid.value for hashid in doc.hashes()],
+            htmls={cell.hashid.value: cell.html for cell in updated_cells},
         ))
         for cell in new_cells:
             if isinstance(cell, CodeCell):

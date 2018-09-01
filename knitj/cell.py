@@ -14,9 +14,7 @@ from pygments.lexers import PythonLexer
 
 from .jupyter_messaging.content import MIME
 
-from typing import Dict, NewType, Optional, Set  # noqa
-
-Hash = NewType('Hash', str)
+from typing import Dict, Optional, Set
 
 _md = Markdown(
     HtmlRenderer(),
@@ -24,8 +22,31 @@ _md = Markdown(
 )
 
 
-def _get_hash(s: str) -> Hash:
-    return Hash(hashlib.sha1(s.encode()).hexdigest())
+class Hash:
+    def __init__(self, value: str) -> None:
+        self._value = value
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Hash):
+            return NotImplemented
+        return self._value == other._value
+
+    def __hash__(self) -> int:
+        return hash(self._value)
+
+    def __str__(self) -> str:
+        return self._value[:6]
+
+    def __repr__(self) -> str:
+        return f'Hash({repr(self._value)})'
+
+    @property
+    def value(self) -> str:
+        return self._value
+
+    @classmethod
+    def from_string(self, s: str) -> 'Hash':
+        return Hash(hashlib.sha1(s.encode()).hexdigest())
 
 
 class BaseCell(metaclass=ABCMeta):
@@ -48,7 +69,8 @@ class TextCell(BaseCell):
     def __init__(self, content: str) -> None:
         super().__init__()
         self.content = content
-        self.hashid = Hash(_get_hash(content) + '-text')
+        self.hashid = Hash.from_string(content)
+        self.hashid._value += '-text'  # TODO this is a hack
 
     def __repr__(self) -> str:
         return f'<TextCell hashid={self.hashid!r} content={self.content!r}>'
@@ -76,7 +98,8 @@ class CodeCell(BaseCell):
         else:
             self.flags = set()
         self.code = code
-        self.hashid = Hash(_get_hash(code) + '-code')
+        self.hashid = Hash.from_string(code)
+        self.hashid._value += '-code'  # TODO this is a hack
         self._output: Optional[Dict[MIME, str]] = None
         self._error: Optional[str] = None
         self._stream = ''
@@ -159,7 +182,7 @@ class CodeCell(BaseCell):
             output = '<pre>' + html.escape(self._stream) + '</pre>' + output
         content = '<div class="code">' + code + '</div>' + \
             '<div class="output">' + output + '</div>'
-        classes = [self.hashid, 'code-cell']
+        classes = [self.hashid.value, 'code-cell']
         classes.extend(self.flags)
         classes.extend(self._flags)
         return f'<div class="{" ".join(classes)}">{content}</div>'
