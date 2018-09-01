@@ -33,7 +33,8 @@ class Kernel:
         self._kernel.start_kernel()
         self._client = self._kernel.client()
         log.info('Kernel started')
-        self._channels = asyncio.ensure_future(asyncio.gather(
+        loop = asyncio.get_event_loop()
+        self._channels = loop.create_task(asyncio.gather(
             self._receiver(),
             self._iopub_receiver(),
             self._shell_receiver()

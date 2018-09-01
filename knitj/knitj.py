@@ -110,9 +110,10 @@ class KnitjServer:
         log.info(f'Started web server on port {port}')
         if self._browser:
             self._browser.open(f'http://localhost:{port}')
+        loop = asyncio.get_event_loop()
         self._tasks.extend([
-            asyncio.ensure_future(self._broadcaster.run()),
-            asyncio.ensure_future(self._watcher.run()),
+            loop.create_task(self._broadcaster.run()),
+            loop.create_task(self._watcher.run()),
         ])
 
     async def cleanup(self) -> None:
