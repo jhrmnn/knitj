@@ -76,7 +76,7 @@ class TextCell(BaseCell):
         return f'<TextCell hashid={self.hashid!r} content={self.content!r}>'
 
     def _to_html(self) -> str:
-        return f'<div class="{self.hashid} text-cell">{_md(self.content)}</div>'
+        return f'<div class="{self.hashid.value} text-cell">{_md(self.content)}</div>'
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BaseCell):
