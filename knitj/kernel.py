@@ -12,7 +12,7 @@ from .cell import Hash
 from . import jupyter_messaging as jupy
 from .jupyter_messaging import UUID
 
-from typing import Dict, Callable
+from typing import Dict, Callable, Optional
 
 log = logging.getLogger('knitj.kernel')
 
@@ -65,15 +65,22 @@ class Kernel:
                 log.info(pformat(dct))
                 raise
             if msg.parent_header:
-                hashid = self._hashids[msg.parent_header.msg_id]
-                self._handler(msg, hashid)
-            else:
-                if isinstance(msg, jupy.STATUS) and \
-                        msg.content.execution_state == jupy.content.State.STARTING:
-                    pass
+                try:
+                    hashid = self._hashids[msg.parent_header.msg_id]
+                except KeyError:
+                    if isinstance(msg, (jupy.STATUS, jupy.SHUTDOWN_REPLY)):
+                        pass
+                    else:
+                        log.warn("Don't have parent message")
+                        log.info(msg)
                 else:
-                    log.warn('message with no parent header')
-                    log.info(msg)
+                    self._handler(msg, hashid)
+            elif isinstance(msg, jupy.STATUS) and \
+                    msg.content.execution_state == jupy.content.State.STARTING:
+                pass
+            else:
+                log.warn('Message with no parent header')
+                log.info(msg)
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
