@@ -14,7 +14,7 @@ log = logging.getLogger('knitj.webserver')
 
 async def on_shutdown(app: web.Application) -> None:
     ws: web.WebSocketResponse
-    for ws in set(app['nb_wss']):
+    for ws in set(app['wss']):
         await ws.close(code=WSCloseCode.GOING_AWAY, message='Server shutdown')
 
 
@@ -26,21 +26,21 @@ async def handler(request: web.Request) -> web.Response:
         ws = web.WebSocketResponse(autoclose=False)
         await ws.prepare(request)
         log.info(f'Browser connected: {id(ws)}')
-        app['nb_wss'].add(ws)
+        app['wss'].add(ws)
         async for msg in ws:
-            app['nb_msg_handler'](msg.json())
+            app['ws_msg_handler'](msg.json())
         log.info(f'Browser disconnected: {id(ws)}')
-        app['nb_wss'].remove(ws)
+        app['wss'].remove(ws)
         return ws
     raise web.HTTPNotFound()
 
 
 def init_webapp(get_index: Callable[[], str],
-                nb_msg_handler: Callable[[Dict], None]) -> web.Application:
+                ws_msg_handler: Callable[[Dict], None]) -> web.Application:
         app = web.Application()
         app['get_index'] = get_index
-        app['nb_msg_handler'] = nb_msg_handler
-        app['nb_wss'] = WeakSet()
+        app['ws_msg_handler'] = ws_msg_handler
+        app['wss'] = WeakSet()
         app.router.add_static('/static', resource_filename('knitj', 'client/static'))
         app.router.add_get('/', handler)
         app.router.add_get('/ws', handler)

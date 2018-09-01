@@ -12,7 +12,7 @@ from pkg_resources import resource_string
 
 from aiohttp import web
 import ansi2html
-from jinja2 import Template
+import jinja2
 from pygments.formatters import HtmlFormatter
 from pygments.styles import get_style_by_name
 
@@ -31,7 +31,7 @@ log = logging.getLogger('knitj')
 
 def render_index(title: str, cells: str, client: bool = True) -> str:
     index = resource_string('knitj', 'client/templates/index.html').decode()
-    template = Template(index)
+    template = jinja2.Template(index)
     styles = '\n'.join(chain(
         [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
         map(str, ansi2html.style.get_styles())
@@ -67,7 +67,7 @@ class Broadcaster:
         self._queue.put_nowait(msg)
 
     async def run(self) -> None:
-        log.info(f'Started broadcasting to kernels')
+        log.info(f'Started broadcasting to browsers')
         while True:
             msg = await self._queue.get()
             data = json.dumps(msg)
@@ -79,20 +79,20 @@ class KnitjServer:
     def __init__(self, source: os.PathLike, output: os.PathLike, fmt: str,
                  browser: webbrowser.BaseBrowser = None,
                  kernel: str = None) -> None:
-        self.source = Path(source)
-        self.output = Path(output)
+        source, output = Path(source), Path(output)
         self._browser = browser
         self._kernel = Kernel(self._kernel_handler, kernel)
-        app = init_webapp(self.get_index, self._nb_msg_handler)
+        app = init_webapp(self.get_index, self._ws_msg_handler)
         self._webrunner = web.AppRunner(app)
-        self._broadcaster = Broadcaster(app['nb_wss'])
-        self._watcher = SourceWatcher(self._source_handler, self.source)
-        self._tasks: List[asyncio.Future] = []
+        self._broadcaster = Broadcaster(app['wss'])
+        self._watcher = SourceWatcher(self._source_handler, source)
         self._document = Document(Parser(fmt))
-        if self.source.exists():
-            self._document.update_from_source(self.source.read_text())
-        if self.output.exists():
-            self._document.load_output_from_html(self.output.read_text())
+        if source.exists():
+            self._document.update_from_source(source.read_text())
+        if output.exists():
+            self._document.load_output_from_html(output.read_text())
+        self._output = output
+        self._tasks: List[asyncio.Future] = []
 
     async def start(self) -> None:
         await self._webrunner.setup()
@@ -126,7 +126,7 @@ class KnitjServer:
 
     def update_all(self, msg: Dict) -> None:
         self._broadcaster.register_message(msg)
-        self.output.write_text(self.get_index(client=False))
+        self._output.write_text(self.get_index(client=False))
 
     def get_index(self, client: bool = True) -> str:
         cells = '\n'.join(cell.html for cell in self._document)
@@ -142,7 +142,7 @@ class KnitjServer:
             html=cell.html,
         ))
 
-    def _nb_msg_handler(self, msg: Dict) -> None:
+    def _ws_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
             log.info('Will reevaluate a cell')
             hashid = msg['hashid']
