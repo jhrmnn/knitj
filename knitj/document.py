@@ -22,6 +22,7 @@ class Document:
     def __init__(self, parser: Parser) -> None:
         self._parser = parser
         self._cells: Dict[Hash, BaseCell] = OrderedDict()
+        self._was_updated = False
 
     def items(self) -> Iterator[Tuple[Hash, BaseCell]]:
         yield from self._cells.items()
@@ -98,19 +99,31 @@ class Document:
 
     def update_from_source(self, source: str
                            ) -> Tuple[List[BaseCell], List[BaseCell]]:
-        cells = self._parser.parse(source)
+        cells = OrderedDict(
+            (cell.hashid, cell) for cell in self._parser.parse(source)
+        )
         new_cells = []
-        updated_cells: List[BaseCell] = []
-        for cell in cells:
-            if cell.hashid in self._cells:
+        cells_with_updated_flags: List[BaseCell] = []
+        for hashid, cell in cells.items():
+            if hashid in self._cells:
                 old_cell = self._cells[cell.hashid]
                 if isinstance(old_cell, CodeCell):
                     assert isinstance(cell, CodeCell)
                     if old_cell.update_flags(cell):
-                        updated_cells.append(old_cell)
+                        cells_with_updated_flags.append(old_cell)
             else:
                 new_cells.append(cell)
-        self._cells = OrderedDict(
-            (cell.hashid, self._cells.get(cell.hashid, cell)) for cell in cells
+        if self._was_updated:
+            n_dropped = sum(hashid not in cells for hashid in self._cells)
+            log.info(
+                f'File change: {len(new_cells)}/{len(self)} new cells, '
+                f'{n_dropped} dropped'
+            )
+        cells = OrderedDict(
+            (hashid, self._cells.get(hashid, cell))
+            for hashid, cell in cells.items()
         )
-        return new_cells, updated_cells
+        self._cells.clear()
+        self._cells.update(cells)
+        self._was_updated = True
+        return new_cells, new_cells + cells_with_updated_flags
