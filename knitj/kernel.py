@@ -65,14 +65,15 @@ class Kernel:
                 log.info(pformat(dct))
                 raise
             if msg.parent_header:
-                hashid: Optional[Hash] = \
-                    self._hashids.get(msg.parent_header.msg_id)
-            else:
-                hashid = None
-                log.warn('message with no parent header')
-                log.info(msg)
-            if hashid:
+                hashid = self._hashids[msg.parent_header.msg_id]
                 self._handler(msg, hashid)
+            else:
+                if isinstance(msg, jupy.STATUS) and \
+                        msg.content.execution_state == jupy.content.State.STARTING:
+                    pass
+                else:
+                    log.warn('message with no parent header')
+                    log.info(msg)
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
