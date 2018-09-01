@@ -64,6 +64,14 @@ function appendReevaluate(cell) {
   }));
 }
 
+function ensureVisible(elem) {
+  const rect = elem.getBoundingClientRect();
+  const height = window.innerHeight || document.documentElement.clientHeight;
+  if (rect.top < 0 || rect.top > height-20) {
+    elem.scrollIntoView();
+  }
+}
+
 ws.onmessage = ({ data }) => {
   const msg = JSON.parse(data);
   if (msg.kind === 'cell') {
@@ -72,12 +80,15 @@ ws.onmessage = ({ data }) => {
     if (arr.length === 1) {
       appendReevaluate(cell);
       arr[0].replaceWith(cell);
+      ensureVisible(cell);
     } else {
+      let cloned;
       arr.forEach((origCell) => {
-        const cloned = cell.cloneNode(true);
+        cloned = cell.cloneNode(true);
         appendReevaluate(cloned);
         origCell.replaceWith(cloned);
       });
+      ensureVisible(cloned);
     }
   } else if (msg.kind === 'document') {
     const cellsEl = h('div', (div) => { div.id = 'cells'; });
