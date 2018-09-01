@@ -43,35 +43,35 @@ class Document:
         try:
             cell = self._cells[hashid]
         except KeyError:
-            log.warning('Cell does not exist anymore')
+            log.warning(f'{hashid}: Cell does not exist anymore')
             return None
         assert isinstance(cell, CodeCell)
         if isinstance(msg, jupy.EXECUTE_RESULT):
-            log.info('Got an execution result')
+            log.info(f'{hashid}: Got an execution result')
             cell.set_output(msg.content.data)
         elif isinstance(msg, jupy.STREAM):
             cell.append_stream(msg.content.text)
         elif isinstance(msg, jupy.DISPLAY_DATA):
-            log.info('Got a picture')
+            log.info(f'{hashid}: Got a picture')
             cell.set_output(msg.content.data)
         elif isinstance(msg, jupy.EXECUTE_REPLY):
             if isinstance(msg.content, jupy.content.ERROR):
-                log.info('Got an error execution reply')
+                log.info(f'{hashid}: Got an error execution reply')
                 html = ansi_convert(
                     '\n'.join(msg.content.traceback), full=False
                 )
                 cell.set_error(html)
             elif isinstance(msg.content, jupy.content.OK):
-                log.info('Got an execution reply')
+                log.info(f'{hashid}: Got an execution reply')
         elif isinstance(msg, jupy.ERROR):
-            log.info('Got an error')
+            log.info(f'{hashid}: Got an error')
             html = ansi_convert(
                 '\n'.join(msg.content.traceback), full=False
             )
             cell.set_error(html)
         elif isinstance(msg, jupy.STATUS):
             if msg.content.execution_state == jupy.content.State.IDLE:
-                log.info('Cell done')
+                log.info(f'{hashid}: Cell done')
                 cell.set_done()
         elif isinstance(msg, jupy.EXECUTE_INPUT):
             pass

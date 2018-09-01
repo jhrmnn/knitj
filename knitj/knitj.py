@@ -146,8 +146,8 @@ class KnitjServer:
 
     def _ws_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
-            log.info('Will reevaluate a cell')
             hashid = Hash(msg['hashid'])
+            log.info(f'{hashid}: Will reevaluate a cell')
             cell = self._document[hashid]
             assert isinstance(cell, CodeCell)
             cell.reset()
