@@ -40,8 +40,8 @@ def parse_cli() -> argparse.Namespace:
 
 
 def main() -> None:
-    log.info('Entered Knitj')
     args = parse_cli()
+    log.info('Entered Knitj')
     fmt: Optional[str] = None
     if args.format:
         fmt = args.format
