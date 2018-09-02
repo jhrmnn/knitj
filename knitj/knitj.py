@@ -60,7 +60,7 @@ async def convert(source: IO[str], output: IO[str], fmt: str,
 
 
 class Broadcaster:
-    def __init__(self, wss: Iterable[web.WebSocketResponse]) -> None:
+    def __init__(self, wss: Set[web.WebSocketResponse]) -> None:
         self._wss = wss
         self._queue: 'asyncio.Queue[Dict]' = asyncio.Queue()
 
@@ -72,8 +72,11 @@ class Broadcaster:
         while True:
             msg = await self._queue.get()
             data = json.dumps(msg)
-            for ws in self._wss:
-                await ws.send_str(data)
+            for ws in list(self._wss):
+                try:
+                    await ws.send_str(data)
+                except ConnectionResetError:
+                    self._wss.remove(ws)
 
 
 class KnitjServer:
