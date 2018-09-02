@@ -28,15 +28,18 @@ def parse_cli() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
     arg = parser.add_argument
     arg('source', type=Path, metavar='FILE', nargs='?', help='input file')
+    arg('-s', '--server', action='store_true', help='run in server mode')
+    arg('-f', '--format', help='input format')
     arg('-o', '--output', type=Path, metavar='FILE', help='output HTML file')
+    arg('-k', '--kernel', help='Jupyter kernel to use')
     arg('-b', '--browser', type=webbrowser.get, default=webbrowser.get(),
         help='browser to open')
     arg('-n', '--no-browser', dest='browser', action='store_false',
         help='do not open a browser')
-    arg('-s', '--server', action='store_true', help='run in server mode')
-    arg('-k', '--kernel', help='Jupyter kernel to use')
-    arg('-f', '--format', help='Input format')
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.server and args.source is None:
+        parser.error('argument -s/--server: requires input file')
+    return args
 
 
 def main() -> None:

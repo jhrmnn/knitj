@@ -55,12 +55,23 @@ Alternatively, one can start the KnitJ server, which starts watching the source 
 
 ```
 $ knitj --server test.py
-INFO:knitj:Started web server on port 8080
-INFO:knitj.kernel:Starting kernel...
-INFO:knitj.kernel:Kernel started
-INFO:knitj:Started broadcasting to kernels
-INFO:knitj.source:Started watching file test.py for changes
-INFO:knitj.webserver:Browser connected: 4580648496
+[22:19:14.718] INFO:knitj: Entered Knitj
+[22:19:14.722] INFO:knitj.document: File change: 3/0 new cells, 0 dropped
+[22:19:14.732] INFO:knitj.document: 2 code cells loaded from output
+[22:19:14.732] INFO:knitj.kernel: Starting kernel...
+[22:19:15.145] INFO:knitj.kernel: Kernel started
+[22:19:15.160] INFO:knitj.knitj: Started web server on port 8081
+[22:19:15.441] INFO:knitj.knitj: Started broadcasting to browsers
+[22:19:15.462] INFO:knitj.source: Started watching file test.md for changes
+[22:19:15.881] INFO:knitj.webserver: Browser connected: 4542074160
+[22:19:41.477] INFO:knitj.document: File change: 1/3 new cells, 1 dropped
+[22:19:41.683] INFO:knitj.document: 72fea2: Got an error
+[22:19:41.698] INFO:knitj.document: 72fea2: Cell done
+[22:19:41.716] INFO:knitj.document: 72fea2: Got an error execution reply
+^C[22:19:46.179] INFO:knitj.webserver: Closing websockets
+[22:19:46.180] INFO:knitj.webserver: Browser disconnected: 4542074160
+[22:19:46.181] INFO:knitj.kernel: Kernel shut down
+[22:19:46.186] INFO:knitj: Leaving Knitj
 ```
 
 ## Installing
@@ -86,4 +97,27 @@ To use KnitJ, you also need some Jupyter kernel on your system. If you don’t h
 
 ```
 pip install ipykernel
+```
+
+## Usage
+
+```
+usage: knitj [-h] [-s] [-f FORMAT] [-o FILE] [-k KERNEL] [-b BROWSER] [-n]
+             [FILE]
+
+positional arguments:
+  FILE                  input file
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s, --server          run in server mode
+  -f FORMAT, --format FORMAT
+                        input format
+  -o FILE, --output FILE
+                        output HTML file
+  -k KERNEL, --kernel KERNEL
+                        Jupyter kernel to use
+  -b BROWSER, --browser BROWSER
+                        browser to open
+  -n, --no-browser      do not open a browser
 ```
