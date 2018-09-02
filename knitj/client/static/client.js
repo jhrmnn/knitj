@@ -38,19 +38,21 @@ function reevaluate(hashid) {
     cell.classList.add('evaluating');
     cell.getElementsByClassName('output')[0].innerHTML = '';
   });
-  send({ kind: 'reevaluate', hashid });
+  send({ kind: 'reevaluate', hashids: [hashid] });
 }
 
 function reevaluateFromHere(hashid) {
   const arr = Array.from(document.getElementById('cells').children);
   const idx = arr.findIndex(cell => cell.classList[0] === hashid);
+  const hashids = [];
   arr.slice(idx).forEach((cell) => {
     if (cell.classList.contains('code-cell')) {
       cell.classList.add('evaluating');
       cell.getElementsByClassName('output')[0].innerHTML = '';
-      send({ kind: 'reevaluate', hashid: cell.classList[0] });
+      hashids.push(cell.classList[0]);
     }
   });
+  send({ kind: 'reevaluate', hashids });
 }
 
 function appendReevaluate(cell) {

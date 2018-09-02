@@ -146,12 +146,13 @@ class KnitjServer:
 
     def _ws_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
-            hashid = Hash(msg['hashid'])
-            log.info(f'{hashid}: Will reevaluate a cell')
-            cell = self._document[hashid]
-            assert isinstance(cell, CodeCell)
-            cell.reset()
-            self._kernel.execute(hashid, cell.code)
+            hashids = [Hash(hashid) for hashid in msg['hashids']]
+            log.info(f'Will reevaluate cells: {", ".join(map(str, hashids))}')
+            for hashid in hashids:
+                cell = self._document[hashid]
+                assert isinstance(cell, CodeCell)
+                cell.reset()
+                self._kernel.execute(hashid, cell.code)
         elif msg['kind'] == 'restart_kernel':
             self._kernel.restart()
         elif msg['kind'] == 'ping':
