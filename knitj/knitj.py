@@ -167,6 +167,8 @@ class KnitjServer:
                 self._kernel.execute(hashid, cell.code)
         elif msg['kind'] == 'restart_kernel':
             self._kernel.restart()
+        elif msg['kind'] == 'interrupt_kernel':
+            self._kernel.interrupt()
         elif msg['kind'] == 'ping':
             pass
         else:

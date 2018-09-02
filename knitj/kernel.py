@@ -52,6 +52,10 @@ class Kernel:
         log.info('Restarting kernel')
         self._kernel.restart_kernel()
 
+    def interrupt(self) -> None:
+        log.info('Interrupting kernel')
+        self._kernel.interrupt_kernel()
+
     def execute(self, hashid: Hash, code: str) -> None:
         msg_id = UUID(self._client.execute(code))
         self._hashids[msg_id] = hashid

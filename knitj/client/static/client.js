@@ -65,6 +65,10 @@ function appendReevaluate(cell) {
     button.onclick = () => { reevaluateFromHere(cell.classList[0]); };
     button.textContent = 'Evaluate all from here';
   }));
+  cell.appendChild(h('button', (button) => {
+    button.onclick = () => { send({ kind: 'interrupt_kernel' }); };
+    button.textContent = 'Interrupt kernel';
+  }));
 }
 
 function ensureVisible(elem) {
