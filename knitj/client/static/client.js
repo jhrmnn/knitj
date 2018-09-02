@@ -26,6 +26,7 @@ function elemFromHtml(html) {
 }
 
 const ws = new WebSocket(`ws://${document.location.host}/ws`);
+let askedForRestart = false;
 
 function send(msg) {
   ws.send(JSON.stringify(msg));
@@ -113,6 +114,11 @@ ws.onmessage = ({ data }) => {
       cellsEl.appendChild(cell);
     });
     document.getElementById('cells').replaceWith(cellsEl);
+  } else if (msg.kind === 'kernel_starting') {
+    if (askedForRestart) {
+      askedForRestart = false;
+      window.alert('Kernel restarted');
+    }
   }
 };
 
@@ -120,6 +126,9 @@ Array.from(document.getElementsByClassName('code-cell')).forEach((cell) => {
   appendReevaluate(cell);
 });
 document.body.insertBefore(h('button', (button) => {
-  button.onclick = () => { send({ kind: 'restart_kernel' }); };
+  button.onclick = () => {
+    askedForRestart = true;
+    send({ kind: 'restart_kernel' });
+  };
   button.textContent = 'Restart kernel';
 }), document.body.firstChild);

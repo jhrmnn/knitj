@@ -134,7 +134,19 @@ class KnitjServer:
         cells = '\n'.join(cell.html for cell in self._document)
         return render_index('', cells, client=client)
 
-    def _kernel_handler(self, msg: jupy.Message, hashid: Hash) -> None:
+    def _kernel_handler(self, msg: jupy.Message, hashid: Optional[Hash]) -> None:
+        if not hashid:
+            if isinstance(msg, jupy.STATUS):
+                if msg.content.execution_state == jupy.content.State.STARTING:
+                    self._broadcaster.register_message({
+                        'kind': 'kernel_starting'
+                    })
+            elif isinstance(msg, jupy.SHUTDOWN_REPLY):
+                pass
+            else:
+                log.warn("Don't have parent message")
+                log.info(msg)
+            return
         cell = self._document.process_message(msg, hashid)
         if not cell:
             return

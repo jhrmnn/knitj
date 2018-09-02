@@ -18,7 +18,7 @@ log = logging.getLogger('knitj.kernel')
 
 
 class Kernel:
-    def __init__(self, handler: Callable[[jupy.Message, Hash], object],
+    def __init__(self, handler: Callable[[jupy.Message, Optional[Hash]], object],
                  kernel: str = None) -> None:
         self._handler = handler
         self._kernel_name = kernel or 'python3'
@@ -65,22 +65,10 @@ class Kernel:
                 log.info(pformat(dct))
                 raise
             if msg.parent_header:
-                try:
-                    hashid = self._hashids[msg.parent_header.msg_id]
-                except KeyError:
-                    if isinstance(msg, (jupy.STATUS, jupy.SHUTDOWN_REPLY)):
-                        pass
-                    else:
-                        log.warn("Don't have parent message")
-                        log.info(msg)
-                else:
-                    self._handler(msg, hashid)
-            elif isinstance(msg, jupy.STATUS) and \
-                    msg.content.execution_state == jupy.content.State.STARTING:
-                pass
+                hashid = self._hashids.get(msg.parent_header.msg_id)
             else:
-                log.warn('Message with no parent header')
-                log.info(msg)
+                hashid = None
+            self._handler(msg, hashid)
 
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
