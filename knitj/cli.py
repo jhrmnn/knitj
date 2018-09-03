@@ -13,7 +13,8 @@ import webbrowser
 
 from typing import Optional, Iterator, IO
 
-from .knitj import KnitjServer, convert
+from .server import KnitjServer
+from .convert import convert
 
 logging.basicConfig(
     style='{',

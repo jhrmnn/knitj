@@ -7,7 +7,7 @@ from pkg_resources import resource_filename
 
 from aiohttp import web, WSCloseCode
 
-from typing import Callable, Awaitable, Optional, Dict, Set  # noqa
+from typing import Callable, Dict
 
 log = logging.getLogger('knitj.webserver')
 

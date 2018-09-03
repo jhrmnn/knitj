@@ -7,14 +7,8 @@ import asyncio
 import webbrowser
 import json
 import logging
-from itertools import chain
-from pkg_resources import resource_string
 
 from aiohttp import web
-import ansi2html
-import jinja2
-from pygments.formatters import HtmlFormatter
-from pygments.styles import get_style_by_name
 
 from .kernel import Kernel
 from .source import SourceWatcher
@@ -22,41 +16,12 @@ from .webserver import init_webapp
 from .parser import Parser
 from .document import Document
 from .cell import Hash, CodeCell
+from .convert import render_index
 from . import jupyter_messaging as jupy
 
-from typing import Set, Dict, List, Optional, Any, IO, Iterable  # noqa
+from typing import Set, Dict, List, Optional
 
 log = logging.getLogger('knitj.knitj')
-
-
-def render_index(title: str, cells: str, client: bool = True) -> str:
-    index = resource_string('knitj', 'client/templates/index.html').decode()
-    template = jinja2.Template(index)
-    styles = '\n'.join(chain(
-        [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
-        map(str, ansi2html.style.get_styles())
-    ))
-    return template.render(title=title, cells=cells, styles=styles, client=client)
-
-
-async def convert(source: IO[str], output: IO[str], fmt: str,
-                  kernel_name: str = None) -> None:
-    document = Document(Parser(fmt))
-    document.update_from_source(source.read())
-    kernel = Kernel(document.process_message, kernel_name)
-    kernel.start()
-    front, back = render_index('', '__CELLS__', client=False).split('__CELLS__')
-    output.write(front)
-    for hashid, cell in document.items():
-        if isinstance(cell, CodeCell):
-            kernel.execute(cell.hashid, cell.code)
-    log.info('Code cells submitted to kernel')
-    for hashid, cell in document.items():
-        if isinstance(cell, CodeCell):
-            await cell.wait_for()
-        output.write(cell.html)
-    output.write(back)
-    await kernel.cleanup()
 
 
 class Broadcaster:

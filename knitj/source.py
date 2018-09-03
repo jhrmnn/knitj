@@ -10,8 +10,9 @@ from asyncio import Queue
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler, FileSystemEvent
 
-from typing import Set, Callable  # noqa
 from .cell import Hash  # noqa
+
+from typing import Callable
 
 log = logging.getLogger('knitj.source')
 
