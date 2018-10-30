@@ -1,6 +1,8 @@
 # KnitJ — Literate programming with Jupyter kernels
 
-![python](https://img.shields.io/badge/python-3.6%20%7C%203.7-blue.svg)
+![python](https://img.shields.io/pypi/pyversions/knitj.svg)
+[![pypi](https://img.shields.io/pypi/v/knitj.svg)](https://pypi.org/project/knitj/)
+[![commits since](https://img.shields.io/github/commits-since/azag0/knitj/latest.svg)](https://github.com/azag0/knitj/releases)
 [![last commit](https://img.shields.io/github/last-commit/azag0/knitj.svg)](https://github.com/azag0/knitj/commits/master)
 [![license](https://img.shields.io/github/license/azag0/knitj.svg)](https://github.com/azag0/knitj/blob/master/LICENSE)
 [![code style](https://img.shields.io/badge/code%20style-black-202020.svg)](https://github.com/ambv/black)
@@ -81,10 +83,10 @@ $ knitj --server test.py
 
 ## Installing
 
-Install with Pip from Github. Requires Python 3.6 or higher.
+Install and update using [Pip](https://pip.pypa.io/en/stable/quickstart/).
 
 ```
-pip install git+https://github.com/azag0/knitj.git
+pip install knitj
 ```
 
 The following dependencies are installed:

@@ -2,3 +2,4 @@
 *.egg-info
 /.mypy_cache/
 /Pipfile.lock
+/dist/
