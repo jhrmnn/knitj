@@ -38,7 +38,7 @@ class Document:
     def hashes(self) -> List[Hash]:
         return list(self._cells)
 
-    def process_message(
+    def process_message(  # noqa: C901
         self, msg: jupy.Message, hashid: Optional[Hash]
     ) -> Optional[BaseCell]:
         if not hashid:

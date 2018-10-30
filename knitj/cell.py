@@ -44,8 +44,8 @@ class Hash:
         return self._value
 
     @classmethod
-    def from_string(self, s: str) -> 'Hash':
-        return Hash(hashlib.sha1(s.encode()).hexdigest())
+    def from_string(cls, s: str) -> 'Hash':
+        return cls(hashlib.sha1(s.encode()).hexdigest())
 
 
 class BaseCell(metaclass=ABCMeta):
@@ -168,7 +168,11 @@ class CodeCell(BaseCell):
             assert m
             output = self._output[MIME.IMAGE_SVG_XML][m.start() :]
         elif MIME.IMAGE_PNG in self._output:
-            output = f'<img alt="" src="data:image/png;base64,{self._output[MIME.IMAGE_PNG]}"/>'
+            output = (
+                '<img alt="" src="data:image/png;base64,'
+                + self._output[MIME.IMAGE_PNG]
+                + '"/>'
+            )
         elif MIME.TEXT_HTML in self._output:
             output = self._output[MIME.TEXT_HTML]
         elif MIME.TEXT_PLAIN in self._output:

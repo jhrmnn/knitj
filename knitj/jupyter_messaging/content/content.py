@@ -3,6 +3,8 @@
 from enum import Enum
 from typing import Dict, List, cast, Any
 
+# flake8: noqa: B903
+
 
 class Status(Enum):
     OK = 'ok'

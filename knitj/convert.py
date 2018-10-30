@@ -41,11 +41,11 @@ async def convert(
     kernel.start()
     front, back = render_index('', '__CELLS__', client=False).split('__CELLS__')
     output.write(front)
-    for hashid, cell in document.items():
+    for _, cell in document.items():
         if isinstance(cell, CodeCell):
             kernel.execute(cell.hashid, cell.code)
     log.info('Code cells submitted to kernel')
-    for hashid, cell in document.items():
+    for _, cell in document.items():
         if isinstance(cell, CodeCell):
             await cell.wait_for()
         output.write(cell.html)

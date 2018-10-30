@@ -123,7 +123,9 @@ class KnitjServer:
         cell = self._document.process_message(msg, hashid)
         if not cell:
             return
-        self.update_all(dict(kind='cell', hashid=cell.hashid.value, html=cell.html))
+        self.update_all(
+            {'kind': 'cell', 'hashid': cell.hashid.value, 'html': cell.html}
+        )
 
     def _ws_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
@@ -150,11 +152,11 @@ class KnitjServer:
             if isinstance(cell, CodeCell):
                 cell._flags.add('evaluating')
         self.update_all(
-            dict(
-                kind='document',
-                hashids=[hashid.value for hashid in doc.hashes()],
-                htmls={cell.hashid.value: cell.html for cell in updated_cells},
-            )
+            {
+                'kind': 'document',
+                'hashids': [hashid.value for hashid in doc.hashes()],
+                'htmls': {cell.hashid.value: cell.html for cell in updated_cells},
+            }
         )
         for cell in new_cells:
             if isinstance(cell, CodeCell):
