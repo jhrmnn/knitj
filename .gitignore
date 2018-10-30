@@ -1,4 +1,4 @@
 *.pyc
 *.egg-info
-*.gv
 /.mypy_cache/
+/Pipfile.lock

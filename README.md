@@ -1,5 +1,10 @@
 # KnitJ — Literate programming with Jupyter kernels
 
+![python](https://img.shields.io/badge/python-3.6%20%7C%203.7-blue.svg)
+[![last commit](https://img.shields.io/github/last-commit/azag0/knitj.svg)](https://github.com/azag0/knitj/commits/master)
+[![license](https://img.shields.io/github/license/azag0/knitj.svg)](https://github.com/azag0/knitj/blob/master/LICENSE)
+[![code style](https://img.shields.io/badge/code%20style-black-202020.svg)](https://github.com/ambv/black)
+
 Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), KnitJ renders a mix of markdown and source code into HTML by evaluating the code in a Jupyter kernel.
 
 In addition to a one-off conversion, KnitJ can serve the HTML document via HTTP and watch the source file for changes. When the source file is changed, KnitJ reevaluates only the changed bits (defined by boundaries between markdown and source code), and pushes the updates into the HTML document via WebSocket.
