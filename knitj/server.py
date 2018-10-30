@@ -45,9 +45,14 @@ class Broadcaster:
 
 
 class KnitjServer:
-    def __init__(self, source: os.PathLike, output: os.PathLike, fmt: str,
-                 browser: webbrowser.BaseBrowser = None,
-                 kernel: str = None) -> None:
+    def __init__(
+        self,
+        source: os.PathLike,
+        output: os.PathLike,
+        fmt: str,
+        browser: webbrowser.BaseBrowser = None,
+        kernel: str = None,
+    ) -> None:
         source, output = Path(source), Path(output)
         self._browser = browser
         self._kernel = Kernel(self._kernel_handler, kernel)
@@ -80,10 +85,12 @@ class KnitjServer:
         if self._browser:
             self._browser.open(f'http://localhost:{port}')
         loop = asyncio.get_event_loop()
-        self._tasks.extend([
-            loop.create_task(self._broadcaster.run()),
-            loop.create_task(self._watcher.run()),
-        ])
+        self._tasks.extend(
+            [
+                loop.create_task(self._broadcaster.run()),
+                loop.create_task(self._watcher.run()),
+            ]
+        )
 
     async def cleanup(self) -> None:
         await asyncio.gather(self._webrunner.cleanup(), self._kernel.cleanup())
@@ -106,9 +113,7 @@ class KnitjServer:
         if not hashid:
             if isinstance(msg, jupy.STATUS):
                 if msg.content.execution_state == jupy.content.State.STARTING:
-                    self._broadcaster.register_message({
-                        'kind': 'kernel_starting'
-                    })
+                    self._broadcaster.register_message({'kind': 'kernel_starting'})
             elif isinstance(msg, jupy.SHUTDOWN_REPLY):
                 pass
             else:
@@ -118,11 +123,7 @@ class KnitjServer:
         cell = self._document.process_message(msg, hashid)
         if not cell:
             return
-        self.update_all(dict(
-            kind='cell',
-            hashid=cell.hashid.value,
-            html=cell.html,
-        ))
+        self.update_all(dict(kind='cell', hashid=cell.hashid.value, html=cell.html))
 
     def _ws_msg_handler(self, msg: Dict) -> None:
         if msg['kind'] == 'reevaluate':
@@ -148,11 +149,13 @@ class KnitjServer:
         for cell in new_cells:
             if isinstance(cell, CodeCell):
                 cell._flags.add('evaluating')
-        self.update_all(dict(
-            kind='document',
-            hashids=[hashid.value for hashid in doc.hashes()],
-            htmls={cell.hashid.value: cell.html for cell in updated_cells},
-        ))
+        self.update_all(
+            dict(
+                kind='document',
+                hashids=[hashid.value for hashid in doc.hashes()],
+                htmls={cell.hashid.value: cell.html for cell in updated_cells},
+            )
+        )
         for cell in new_cells:
             if isinstance(cell, CodeCell):
                 self._kernel.execute(cell.hashid, cell.code)

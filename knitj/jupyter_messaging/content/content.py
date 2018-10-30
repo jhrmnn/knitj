@@ -42,9 +42,16 @@ class BaseContent:
 
 
 class ExecuteRequestContent(BaseContent):
-    def __init__(self, *, code: str, silent: bool, store_history: bool,
-                 user_expressions: Dict, allow_stdin: bool,
-                 stop_on_error: bool) -> None:
+    def __init__(
+        self,
+        *,
+        code: str,
+        silent: bool,
+        store_history: bool,
+        user_expressions: Dict,
+        allow_stdin: bool,
+        stop_on_error: bool,
+    ) -> None:
         self.code = code
         self.silent = silent
         self.store_history = store_history
@@ -58,8 +65,14 @@ class BaseExecuteReplyContent(BaseContent):
 
 
 class ExecuteReplyOkContent(BaseExecuteReplyContent):
-    def __init__(self, *, status: str, execution_count: int,
-                 payload: List[Dict] = None, user_expressions: Dict = None) -> None:
+    def __init__(
+        self,
+        *,
+        status: str,
+        execution_count: int,
+        payload: List[Dict] = None,
+        user_expressions: Dict = None,
+    ) -> None:
         self.status = Status(status)
         self.execution_count = execution_count
         self.payload = payload
@@ -67,8 +80,15 @@ class ExecuteReplyOkContent(BaseExecuteReplyContent):
 
 
 class ExecuteReplyErrorContent(BaseExecuteReplyContent):
-    def __init__(self, *, status: str, ename: str, evalue: str, traceback: List[str],
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        *,
+        status: str,
+        ename: str,
+        evalue: str,
+        traceback: List[str],
+        **kwargs: Any,
+    ) -> None:
         self.status = Status(status)
         self.ename = ename
         self.evalue = evalue

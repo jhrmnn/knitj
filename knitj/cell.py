@@ -17,8 +17,7 @@ from .jupyter_messaging.content import MIME
 from typing import Dict, Optional, Set
 
 _md = Markdown(
-    HtmlRenderer(),
-    extensions='fenced-code math math-explicit tables quote'.split()
+    HtmlRenderer(), extensions='fenced-code math math-explicit tables quote'.split()
 )
 
 
@@ -90,7 +89,7 @@ class CodeCell(BaseCell):
         m = re.match(r'#\s*::', code)
         if m:
             try:
-                modeline, code = code[m.end():].split('\n', 1)
+                modeline, code = code[m.end() :].split('\n', 1)
             except ValueError:
                 modeline, code = code, ''
             modeline = re.sub(r'[^a-z]', '', modeline)
@@ -167,7 +166,7 @@ class CodeCell(BaseCell):
         elif MIME.IMAGE_SVG_XML in self._output:
             m = re.search(r'<svg', self._output[MIME.IMAGE_SVG_XML])
             assert m
-            output = self._output[MIME.IMAGE_SVG_XML][m.start():]
+            output = self._output[MIME.IMAGE_SVG_XML][m.start() :]
         elif MIME.IMAGE_PNG in self._output:
             output = f'<img alt="" src="data:image/png;base64,{self._output[MIME.IMAGE_PNG]}"/>'
         elif MIME.TEXT_HTML in self._output:
@@ -180,8 +179,7 @@ class CodeCell(BaseCell):
             output = '<pre>' + self._error + '</pre>' + output
         if self._stream:
             output = '<pre>' + html.escape(self._stream) + '</pre>' + output
-        content = '<div class="code">' + code + '</div>' + \
-            '<div class="output">' + output + '</div>'
+        content = f'<div class="code">{code}</div><div class="output">{output}</div>'
         classes = [self.hashid.value, 'code-cell']
         classes.extend(self.flags)
         classes.extend(self._flags)

@@ -41,8 +41,16 @@ _msg_colors = {
 
 
 class Header:
-    def __init__(self, *, msg_id: UUID, username: str, session: UUID,
-                 date: datetime.datetime, msg_type: str, version: str) -> None:
+    def __init__(
+        self,
+        *,
+        msg_id: UUID,
+        username: str,
+        session: UUID,
+        date: datetime.datetime,
+        msg_type: str,
+        version: str,
+    ) -> None:
         self.msg_id = msg_id
         self.username = username
         self.session = session
@@ -55,8 +63,16 @@ class Header:
 
 
 class BaseMessage:
-    def __init__(self, *, header: Dict, parent_header: Dict, metadata: Dict,
-                 buffers: List, msg_id: UUID, msg_type: str) -> None:
+    def __init__(
+        self,
+        *,
+        header: Dict,
+        parent_header: Dict,
+        metadata: Dict,
+        buffers: List,
+        msg_id: UUID,
+        msg_type: str,
+    ) -> None:
         self.header = Header(**header)
         self.parent_header = Header(**parent_header) if parent_header else None
         self.metadata = metadata
@@ -161,13 +177,12 @@ class colstr(str):
         'pink': '\x1b[35m',
         'cyan': '\x1b[36m',
         'grey': '\x1b[37m',
-        'normal': '\x1b[0m'
+        'normal': '\x1b[0m',
     }
 
     def __new__(cls, s: Any, color: str) -> str:
         return str.__new__(  # type: ignore
-            cls,
-            colstr.colors[color] + str(s) + colstr.colors['normal']
+            cls, colstr.colors[color] + str(s) + colstr.colors['normal']
         )
 
     def __init__(self, s: Any, color: str) -> None:

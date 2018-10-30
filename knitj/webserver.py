@@ -36,18 +36,17 @@ async def handler(request: web.Request) -> web.Response:
     raise web.HTTPNotFound()
 
 
-def init_webapp(get_index: Callable[[], str],
-                ws_msg_handler: Callable[[Dict], None]) -> web.Application:
-        app = web.Application()
-        app['get_index'] = get_index
-        app['ws_msg_handler'] = ws_msg_handler
-        app['wss'] = WeakSet()
-        app.router.add_static(
-            '/static',
-            resource_filename('knitj', 'client/static'),
-            append_version=True,
-        )
-        app.router.add_get('/', handler)
-        app.router.add_get('/ws', handler)
-        app.on_shutdown.append(on_shutdown)
-        return app
+def init_webapp(
+    get_index: Callable[[], str], ws_msg_handler: Callable[[Dict], None]
+) -> web.Application:
+    app = web.Application()
+    app['get_index'] = get_index
+    app['ws_msg_handler'] = ws_msg_handler
+    app['wss'] = WeakSet()
+    app.router.add_static(
+        '/static', resource_filename('knitj', 'client/static'), append_version=True
+    )
+    app.router.add_get('/', handler)
+    app.router.add_get('/ws', handler)
+    app.on_shutdown.append(on_shutdown)
+    return app

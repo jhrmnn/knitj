@@ -33,25 +33,25 @@ def parse_markdown(text: str) -> List[BaseCell]:
         m = re.search(r'((?<=\n)|^)```python|<!--|$', text)
         assert m
         if m.group(0) == '```python' or not m.group(0):
-            buffer += text[:m.start()]
+            buffer += text[: m.start()]
             buffer = buffer.strip()
             if buffer:
                 cells.append(TextCell(buffer))
                 buffer = ''
-            text = text[m.end():]
+            text = text[m.end() :]
         if m.group(0) == '```python':
             m = re.search(r'(?<=\n)```(?=\s*\n|$)', text)
             if not m:
                 raise ParsingError('Unclosed Python cell')
-            code = text[:m.start()].strip()
+            code = text[: m.start()].strip()
             cells.append(CodeCell(code))
-            text = text[m.end():]
+            text = text[m.end() :]
         elif m.group(0) == '<!--':
             m = re.search(r'-->', text)
             if not m:
                 raise ParsingError('Unclosed HTML comment')
-            buffer += text[:m.end()]
-            text = text[m.end():]
+            buffer += text[: m.end()]
+            text = text[m.end() :]
     return cells
 
 
@@ -62,19 +62,19 @@ def parse_python(text: str) -> List[BaseCell]:
     while text:
         m = re.search(r'((?<=\n)|^)#\s*::>|$', text)
         assert m
-        buffer += text[:m.start()]
+        buffer += text[: m.start()]
         buffer = buffer.strip()
         if buffer:
             buffer = re.sub(r'((?<=\n)|^)#\s*::%', '%', buffer)
             cells.append(CodeCell(buffer))
             buffer = ''
-        text = text[m.end():]
+        text = text[m.end() :]
         if m.group(0):
             m = re.search(r'(?<=\n)[^#]|$', text)
             if not m:
                 raise ParsingError('Unclosed Markdown cell')
-            md = text[:m.start()].strip()
+            md = text[: m.start()].strip()
             md = re.sub(r'((?<=\n)|^)# ?', '', md)
             cells.append(TextCell(md))
-            text = text[m.start():]
+            text = text[m.start() :]
     return cells

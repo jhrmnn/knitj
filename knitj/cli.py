@@ -33,10 +33,20 @@ def parse_cli() -> argparse.Namespace:
     arg('-f', '--format', help='input format')
     arg('-o', '--output', type=Path, metavar='FILE', help='output HTML file')
     arg('-k', '--kernel', help='Jupyter kernel to use')
-    arg('-b', '--browser', type=webbrowser.get, default=webbrowser.get(),
-        help='browser to open')
-    arg('-n', '--no-browser', dest='browser', action='store_false',
-        help='do not open a browser')
+    arg(
+        '-b',
+        '--browser',
+        type=webbrowser.get,
+        default=webbrowser.get(),
+        help='browser to open',
+    )
+    arg(
+        '-n',
+        '--no-browser',
+        dest='browser',
+        action='store_false',
+        help='do not open a browser',
+    )
     args = parser.parse_args()
     if args.server and args.source is None:
         parser.error('argument -s/--server: requires input file')
@@ -66,9 +76,7 @@ def main() -> None:
             output = args.output
         else:
             output = args.source.with_suffix('.html')
-        app = KnitjServer(
-            args.source, output, fmt, args.browser, args.kernel
-        )
+        app = KnitjServer(args.source, output, fmt, args.browser, args.kernel)
         loop.run_until_complete(app.start())
         try:
             loop.run_forever()
@@ -76,8 +84,7 @@ def main() -> None:
             pass
         loop.run_until_complete(app.cleanup())
     else:
-        with maybe_input(args.source) as source, \
-                maybe_output(args.output) as output:
+        with maybe_input(args.source) as source, maybe_output(args.output) as output:
             loop.run_until_complete(convert(source, output, fmt, args.kernel))
     executor.shutdown(wait=True)
     loop.close()

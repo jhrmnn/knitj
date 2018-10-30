@@ -42,8 +42,7 @@ class SourceWatcher:
         self._file_change: 'Queue[str]' = Queue()
         self._observer = Observer()
         self._observer.schedule(
-            FileChangedHandler(queue=self._file_change),
-            str(self._path.parent)
+            FileChangedHandler(queue=self._file_change), str(self._path.parent)
         )
 
     async def run(self) -> None:

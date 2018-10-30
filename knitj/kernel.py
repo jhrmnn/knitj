@@ -18,8 +18,11 @@ log = logging.getLogger('knitj.kernel')
 
 
 class Kernel:
-    def __init__(self, handler: Callable[[jupy.Message, Optional[Hash]], object],
-                 kernel: str = None) -> None:
+    def __init__(
+        self,
+        handler: Callable[[jupy.Message, Optional[Hash]], object],
+        kernel: str = None,
+    ) -> None:
         self._handler = handler
         self._kernel_name = kernel or 'python3'
         self._hashids: Dict[UUID, Hash] = {}
@@ -28,15 +31,12 @@ class Kernel:
 
     def start(self) -> None:
         log.info('Starting kernel...')
-        self._kernel = \
-            jupyter_client.KernelManager(kernel_name=self._kernel_name)
+        self._kernel = jupyter_client.KernelManager(kernel_name=self._kernel_name)
         self._kernel.start_kernel()
         self._client = self._kernel.client()
         log.info('Kernel started')
         self._channels = asyncio.gather(
-            self._receiver(),
-            self._iopub_receiver(),
-            self._shell_receiver()
+            self._receiver(), self._iopub_receiver(), self._shell_receiver()
         )
 
     async def cleanup(self) -> None:
@@ -77,6 +77,7 @@ class Kernel:
     async def _iopub_receiver(self) -> None:
         def partial() -> Dict:
             return self._client.get_iopub_msg(timeout=0.3)
+
         while True:
             try:
                 dct = await self._loop.run_in_executor(None, partial)
@@ -87,6 +88,7 @@ class Kernel:
     async def _shell_receiver(self) -> None:
         def partial() -> Dict:
             return self._client.get_shell_msg(timeout=0.3)
+
         while True:
             try:
                 dct = await self._loop.run_in_executor(None, partial)

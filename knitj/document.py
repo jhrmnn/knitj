@@ -38,8 +38,9 @@ class Document:
     def hashes(self) -> List[Hash]:
         return list(self._cells)
 
-    def process_message(self, msg: jupy.Message, hashid: Optional[Hash]
-                        ) -> Optional[BaseCell]:
+    def process_message(
+        self, msg: jupy.Message, hashid: Optional[Hash]
+    ) -> Optional[BaseCell]:
         if not hashid:
             return None
         try:
@@ -59,17 +60,13 @@ class Document:
         elif isinstance(msg, jupy.EXECUTE_REPLY):
             if isinstance(msg.content, jupy.content.ERROR):
                 log.info(f'{hashid}: Got an error execution reply')
-                html = ansi_convert(
-                    '\n'.join(msg.content.traceback), full=False
-                )
+                html = ansi_convert('\n'.join(msg.content.traceback), full=False)
                 cell.set_error(html)
             elif isinstance(msg.content, jupy.content.OK):
                 log.info(f'{hashid}: Got an execution reply')
         elif isinstance(msg, jupy.ERROR):
             log.info(f'{hashid}: Got an error')
-            html = ansi_convert(
-                '\n'.join(msg.content.traceback), full=False
-            )
+            html = ansi_convert('\n'.join(msg.content.traceback), full=False)
             cell.set_error(html)
         elif isinstance(msg, jupy.STATUS):
             if msg.content.execution_state == jupy.content.State.IDLE:
@@ -93,20 +90,15 @@ class Document:
                 n_loaded += 1
                 cell = self._cells[hashid]
                 assert isinstance(cell, CodeCell)
-                cell.set_output({
-                    MIME.TEXT_HTML: str(cell_tag.find(class_='output'))
-                })
+                cell.set_output({MIME.TEXT_HTML: str(cell_tag.find(class_='output'))})
                 if 'done' in cell_tag.attrs['class']:
                     cell.set_done()
                 if 'hide' in cell_tag.attrs['class']:
                     cell.flags.add('hide')
         log.info(f'{n_loaded} code cells loaded from output')
 
-    def update_from_source(self, source: str
-                           ) -> Tuple[List[BaseCell], List[BaseCell]]:
-        cells = OrderedDict(
-            (cell.hashid, cell) for cell in self._parser.parse(source)
-        )
+    def update_from_source(self, source: str) -> Tuple[List[BaseCell], List[BaseCell]]:
+        cells = OrderedDict((cell.hashid, cell) for cell in self._parser.parse(source))
         new_cells = []
         cells_with_updated_flags: List[BaseCell] = []
         for hashid, cell in cells.items():
@@ -124,8 +116,7 @@ class Document:
             f'{n_dropped} dropped'
         )
         cells = OrderedDict(
-            (hashid, self._cells.get(hashid, cell))
-            for hashid, cell in cells.items()
+            (hashid, self._cells.get(hashid, cell)) for hashid, cell in cells.items()
         )
         self._cells.clear()
         self._cells.update(cells)

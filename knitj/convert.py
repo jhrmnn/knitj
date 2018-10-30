@@ -23,15 +23,18 @@ log = logging.getLogger('knitj.knitj')
 def render_index(title: str, cells: str, client: bool = True) -> str:
     index = resource_string('knitj', 'client/templates/index.html').decode()
     template = jinja2.Template(index)
-    styles = '\n'.join(chain(
-        [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
-        map(str, ansi2html.style.get_styles())
-    ))
+    styles = '\n'.join(
+        chain(
+            [HtmlFormatter(style=get_style_by_name('trac')).get_style_defs()],
+            map(str, ansi2html.style.get_styles()),
+        )
+    )
     return template.render(title=title, cells=cells, styles=styles, client=client)
 
 
-async def convert(source: IO[str], output: IO[str], fmt: str,
-                  kernel_name: str = None) -> None:
+async def convert(
+    source: IO[str], output: IO[str], fmt: str, kernel_name: str = None
+) -> None:
     document = Document(Parser(fmt))
     document.update_from_source(source.read())
     kernel = Kernel(document.process_message, kernel_name)
