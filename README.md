@@ -1,4 +1,4 @@
-# KnitJ — Literate programming with Jupyter kernels
+# KnitJ
 
 ![python](https://img.shields.io/pypi/pyversions/knitj.svg)
 [![pypi](https://img.shields.io/pypi/v/knitj.svg)](https://pypi.org/project/knitj/)
@@ -7,7 +7,7 @@
 [![license](https://img.shields.io/github/license/azag0/knitj.svg)](https://github.com/azag0/knitj/blob/master/LICENSE)
 [![code style](https://img.shields.io/badge/code%20style-black-202020.svg)](https://github.com/ambv/black)
 
-Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), KnitJ renders a mix of markdown and source code into HTML by evaluating the code in a Jupyter kernel.
+KnitJ is an alternative front-end to Jupyter kernels. Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), KnitJ renders a mix of markdown and source code into HTML by evaluating the code in a Jupyter kernel.
 
 In addition to a one-off conversion, KnitJ can serve the HTML document via HTTP and watch the source file for changes. When the source file is changed, KnitJ reevaluates only the changed bits (defined by boundaries between markdown and source code), and pushes the updates into the HTML document via WebSocket.
 
@@ -86,7 +86,7 @@ $ knitj --server test.py
 Install and update using [Pip](https://pip.pypa.io/en/stable/quickstart/).
 
 ```
-pip install knitj
+pip install -U knitj
 ```
 
 The following dependencies are installed:
