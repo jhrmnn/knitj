@@ -192,3 +192,13 @@ class CodeCell(BaseCell):
         classes.extend(self.flags)
         classes.extend(self._flags)
         return f'<div class="{" ".join(classes)}">{content}</div>'
+
+
+class JinjaCell(CodeCell):
+    def __init__(self, template: str) -> None:
+        code = f'# ::hide\nprint(jinja2.Template({template!r}).render(locals()))'
+        CodeCell.__init__(self, code)
+        self._template = template
+
+    def append_stream(self, s: str) -> None:
+        super().set_output({MIME.TEXT_HTML: _md(s)})

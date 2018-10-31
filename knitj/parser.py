@@ -3,7 +3,7 @@
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import re
 
-from .cell import BaseCell, TextCell, CodeCell
+from .cell import BaseCell, TextCell, CodeCell, JinjaCell
 
 from typing import List
 
@@ -60,7 +60,7 @@ def parse_python(text: str) -> List[BaseCell]:
     cells: List[BaseCell] = []
     buffer = ''
     while text:
-        m = re.search(r'((?<=\n)|^)#\s*::>|$', text)
+        m = re.search(r'((?<=\n)|^)# ?::>|$', text)
         assert m
         buffer += text[: m.start()]
         buffer = buffer.strip()
@@ -73,8 +73,11 @@ def parse_python(text: str) -> List[BaseCell]:
             m = re.search(r'(?<=\n)[^#]|$', text)
             if not m:
                 raise ParsingError('Unclosed Markdown cell')
-            md = text[: m.start()].strip()
-            md = re.sub(r'((?<=\n)|^)# ?', '', md)
-            cells.append(TextCell(md))
-            text = text[m.start() :]
+            chunk, text = text[: m.start()], text[m.start() :]
+            assert chunk[0] in {'\n', 'j'}
+            is_jinja = chunk[0] == 'j'
+            if is_jinja:
+                chunk = chunk[1:]
+            md = re.sub(r'((?<=\n)|^)# ?', '', chunk.strip())
+            cells.append(JinjaCell(md) if is_jinja else TextCell(md))
     return cells
