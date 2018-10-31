@@ -1,0 +1,50 @@
+[tool.black]
+py36 = true
+skip-string-normalization = true
+
+[tool.poetry]
+name = "knitj"
+version = "0.2.2"
+description = "Alternative Jupyter front-end"
+readme = "README.md"
+authors = ["Jan Hermann <dev@janhermann.cz>"]
+repository = "https://github.com/azag0/knitj"
+license = "MPL-2.0"
+classifiers = [
+    'Development Status :: 3 - Alpha',
+    'Environment :: Console',
+    'Environment :: Web Environment',
+    'Framework :: IPython',
+    'Intended Audience :: Developers',
+    'Intended Audience :: Science/Research',
+    'License :: OSI Approved :: Mozilla Public License 2.0 (MPL 2.0)',
+    'Natural Language :: English',
+    'Operating System :: POSIX',
+    'Programming Language :: Python :: 3.6',
+    'Topic :: Utilities',
+]
+
+[tool.poetry.dependencies]
+python = "^3.6"
+watchdog = "^0.9.0"
+jupyter-client = "^5.2"
+ansi2html = "^1.5"
+misaka = "^2.1"
+aiohttp = "^3.4"
+pygments = "^2.2"
+Jinja2 = "^2.10"
+beautifulsoup4 = "^4.6"
+pyyaml = "^3.13"
+
+[tool.poetry.scripts]
+knitj = "knitj.cli:main"
+
+[tool.poetry.dev-dependencies]
+mypy = "^0.641.0"
+lxml = "^4.2"
+flake8 = "^3.6"
+flake8-bugbear = "^18.8"
+flake8-comprehensions = "^1.4"
+flake8-quotes = "^1.0"
+black = "^18.3-alpha.0"
+ipykernel = "^5.1"
