@@ -1,4 +1,4 @@
-# KnitJ
+# Knitj
 
 ![python](https://img.shields.io/pypi/pyversions/knitj.svg)
 [![pypi](https://img.shields.io/pypi/v/knitj.svg)](https://pypi.org/project/knitj/)
@@ -7,9 +7,9 @@
 [![license](https://img.shields.io/github/license/azag0/knitj.svg)](https://github.com/azag0/knitj/blob/master/LICENSE)
 [![code style](https://img.shields.io/badge/code%20style-black-202020.svg)](https://github.com/ambv/black)
 
-KnitJ is an alternative front-end to Jupyter kernels. Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), KnitJ renders a mix of markdown and source code into HTML by evaluating the code in a Jupyter kernel.
+Knitj is an alternative front-end to Jupyter kernels. Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), Knitj renders a mix of markdown and source code into HTML by evaluating the code in a Jupyter kernel.
 
-In addition to a one-off conversion, KnitJ can serve the HTML document via HTTP and watch the source file for changes. When the source file is changed, KnitJ reevaluates only the changed bits (defined by boundaries between markdown and source code), and pushes the updates into the HTML document via WebSocket.
+In addition to a one-off conversion, Knitj can serve the HTML document via HTTP and watch the source file for changes. When the source file is changed, Knitj reevaluates only the changed bits (defined by boundaries between markdown and source code), and pushes the updates into the HTML document via WebSocket.
 
 ## Example
 
@@ -58,7 +58,7 @@ plt.plot(x, np.sin(x)/x)
 
 ![](docs/static/example.png)
 
-Alternatively, one can start the KnitJ server, which starts watching the source file for changes and opens a browser window with the rendered and live-updated HTML document
+Alternatively, one can start the Knitj server, which starts watching the source file for changes and opens a browser window with the rendered and live-updated HTML document
 
 ```
 $ knitj --server test.py
@@ -100,7 +100,7 @@ The following dependencies are installed:
 -   [Jinja](http://jinja.pocoo.org) for HTML templates
 -   [Beautiful Soup](https://www.crummy.com/software/BeautifulSoup/) for parsing HTML
 
-To use KnitJ, you also need some Jupyter kernel on your system. If you don’t have one, you can get the IPython kernel with
+To use Knitj, you also need some Jupyter kernel on your system. If you don’t have one, you can get the IPython kernel with
 
 ```
 pip install ipykernel
