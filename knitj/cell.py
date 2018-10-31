@@ -1,11 +1,12 @@
 # This Source Code Form is subject to the terms of the Mozilla Public
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
+import re
 import hashlib
 import html
-from abc import ABCMeta, abstractmethod
 import asyncio
-import re
+from abc import ABC, abstractmethod
+from typing import Dict, Optional, Set
 
 from misaka import Markdown, HtmlRenderer
 import pygments
@@ -14,7 +15,6 @@ from pygments.lexers import PythonLexer
 
 from .jupyter_messaging.content import MIME
 
-from typing import Dict, Optional, Set
 
 _md = Markdown(
     HtmlRenderer(), extensions='fenced-code math math-explicit tables quote'.split()
@@ -48,34 +48,36 @@ class Hash:
         return cls(hashlib.sha1(s.encode()).hexdigest())
 
 
-class BaseCell(metaclass=ABCMeta):
-    def __init__(self) -> None:
+class BaseCell(ABC):
+    def __init__(self, content: str) -> None:
         self._html: Optional[str] = None
-        self.hashid: Hash
+        self._hashid = Hash.from_string(content)
+
+    @property
+    def hashid(self) -> Hash:
+        return self._hashid
 
     @property
     def html(self) -> str:
         if self._html is None:
-            self._html = self._to_html()
+            self._html = self.to_html()
         return self._html
 
     @abstractmethod
-    def _to_html(self) -> str:
+    def to_html(self) -> str:
         ...
 
 
 class TextCell(BaseCell):
     def __init__(self, content: str) -> None:
-        super().__init__()
-        self.content = content
-        self.hashid = Hash.from_string(content)
-        self.hashid._value += '-text'  # TODO this is a hack
+        BaseCell.__init__(self, 'text' + content)
+        self._content = content
 
     def __repr__(self) -> str:
-        return f'<TextCell hashid={self.hashid!r} content={self.content!r}>'
+        return f'<TextCell hashid={self.hashid!r} content={self._content!r}>'
 
-    def _to_html(self) -> str:
-        return f'<div class="{self.hashid.value} text-cell">{_md(self.content)}</div>'
+    def to_html(self) -> str:
+        return f'<div class="{self.hashid.value} text-cell">{_md(self._content)}</div>'
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BaseCell):
@@ -85,7 +87,7 @@ class TextCell(BaseCell):
 
 class CodeCell(BaseCell):
     def __init__(self, code: str) -> None:
-        super().__init__()
+        BaseCell.__init__(self, 'code' + code)
         m = re.match(r'#\s*::', code)
         if m:
             try:
@@ -96,9 +98,7 @@ class CodeCell(BaseCell):
             self.flags = set(modeline.split())
         else:
             self.flags = set()
-        self.code = code
-        self.hashid = Hash.from_string(code)
-        self.hashid._value += '-code'  # TODO this is a hack
+        self._code = code
         self._output: Optional[Dict[MIME, str]] = None
         self._error: Optional[str] = None
         self._stream = ''
@@ -107,14 +107,18 @@ class CodeCell(BaseCell):
 
     def __repr__(self) -> str:
         return (
-            f'<CodeCell hashid={self.hashid!r} code={self.code!r} '
-            f'output={self._output!r}>'
+            f'<{self.__class__.__name__} hashid={self.hashid!r} '
+            f'code={self._code!r} output={self._output!r}>'
         )
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, CodeCell):
             return NotImplemented
         return super().__eq__(other) and self.flags == other.flags
+
+    @property
+    def code(self) -> str:
+        return self._code
 
     def update_flags(self, other: 'CodeCell') -> bool:
         update = self.flags != other.flags
@@ -130,7 +134,7 @@ class CodeCell(BaseCell):
         self._stream += s
         self._html = None
 
-    def set_output(self, output: Optional[Dict[MIME, str]]) -> None:
+    def set_output(self, output: Dict[MIME, str]) -> None:
         self._output = output
         self._html = None
 
@@ -159,8 +163,8 @@ class CodeCell(BaseCell):
     async def wait_for(self) -> None:
         await self._done
 
-    def _to_html(self) -> str:
-        code = pygments.highlight(self.code, PythonLexer(), HtmlFormatter())
+    def to_html(self) -> str:
+        code = pygments.highlight(self._code, PythonLexer(), HtmlFormatter())
         if self._output is None:
             output = ''
         elif MIME.IMAGE_SVG_XML in self._output:
