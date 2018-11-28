@@ -4,7 +4,7 @@ skip-string-normalization = true
 
 [tool.poetry]
 name = "knitj"
-version = "0.2.2"
+version = "0.3.0"
 description = "Alternative Jupyter front-end"
 readme = "README.md"
 authors = ["Jan Hermann <dev@janhermann.cz>"]
