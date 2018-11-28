@@ -107,7 +107,11 @@ class KnitjServer:
 
     def get_index(self, client: bool = True) -> str:
         cells = '\n'.join(cell.html for cell in self._document)
-        return render_index('', cells, client=client)
+        try:
+            template: Optional[Path] = Path(self._document.frontmatter['template'])
+        except KeyError:
+            template = None
+        return render_index('', cells, client=client, template=template)
 
     def _kernel_handler(self, msg: jupy.Message, hashid: Optional[Hash]) -> None:
         if not hashid:

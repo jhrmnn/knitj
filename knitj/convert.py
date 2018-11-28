@@ -45,7 +45,13 @@ async def convert(
     document.update_from_source(source.read())
     kernel = Kernel(document.process_message, kernel_name)
     kernel.start()
-    front, back = render_index('', '__CELLS__', client=False).split('__CELLS__')
+    try:
+        template: Optional[Path] = Path(document.frontmatter['template'])
+    except KeyError:
+        template = None
+    front, back = render_index('', '__CELLS__', client=False, template=template).split(
+        '__CELLS__'
+    )
     output.write(front)
     for _, cell in document.items():
         if isinstance(cell, CodeCell):
