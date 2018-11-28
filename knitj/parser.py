@@ -2,10 +2,11 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this
 # file, You can obtain one at http://mozilla.org/MPL/2.0/.
 import re
+import yaml
 
 from .cell import BaseCell, TextCell, CodeCell, JinjaCell
 
-from typing import List
+from typing import List, Tuple, Any, Optional, Dict
 
 
 class ParsingError(Exception):
@@ -21,11 +22,20 @@ class Parser:
         else:
             raise ValueError(f'Unknown format: {fmt}')
 
-    def parse(self, text: str) -> List[BaseCell]:
-        return self._parser(text)
+    def parse(self, text: str) -> Tuple[Optional[Dict[str, Any]], List[BaseCell]]:
+        frontmatter, cells = self._parser(text)
+        if frontmatter is not None:
+            return yaml.load(frontmatter), cells
+        return None, cells
 
 
-def parse_markdown(text: str) -> List[BaseCell]:
+def parse_markdown(text: str) -> Tuple[Optional[str], List[BaseCell]]:
+    m = re.match(r'^---\n((.*\n)*)---\n', text)
+    if m:
+        text = text[m.end() :]
+        frontmatter: Optional[str] = m.group(1)
+    else:
+        frontmatter = None
     text = text.rstrip()
     cells: List[BaseCell] = []
     buffer = ''
@@ -52,10 +62,18 @@ def parse_markdown(text: str) -> List[BaseCell]:
                 raise ParsingError('Unclosed HTML comment')
             buffer += text[: m.end()]
             text = text[m.end() :]
-    return cells
+    return frontmatter, cells
 
 
-def parse_python(text: str) -> List[BaseCell]:
+def parse_python(text: str) -> Tuple[Optional[str], List[BaseCell]]:
+    m = re.match(r'^# ---\n((# .*\n)*)# ---\n', text)
+    if m:
+        text = text[m.end() :]
+        frontmatter: Optional[str] = '\n'.join(
+            l[2:] for l in m.group(1).split('\n')[:-1]
+        )
+    else:
+        frontmatter = None
     text = text.rstrip()
     cells: List[BaseCell] = []
     buffer = ''
@@ -80,4 +98,4 @@ def parse_python(text: str) -> List[BaseCell]:
                 chunk = chunk[1:]
             md = re.sub(r'((?<=\n)|^)# ?', '', chunk.strip())
             cells.append(JinjaCell(md) if is_jinja else TextCell(md))
-    return cells
+    return frontmatter, cells

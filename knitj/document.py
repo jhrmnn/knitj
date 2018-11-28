@@ -11,7 +11,7 @@ from .parser import Parser
 from . import jupyter_messaging as jupy
 from .jupyter_messaging.content import MIME
 
-from typing import List, Optional, Tuple, Iterator, Dict
+from typing import List, Optional, Tuple, Iterator, Dict, Any
 from .cell import BaseCell, Hash, CodeCell
 
 ansi_convert = ansi2html.Ansi2HTMLConverter().convert
@@ -21,6 +21,7 @@ log = logging.getLogger('knitj.document')
 class Document:
     def __init__(self, parser: Parser) -> None:
         self._parser = parser
+        self._frontmatter: Optional[Dict[str, Any]] = None
         self._cells: Dict[Hash, BaseCell] = OrderedDict()
 
     def items(self) -> Iterator[Tuple[Hash, BaseCell]]:
@@ -34,6 +35,10 @@ class Document:
 
     def __len__(self) -> int:
         return len(self._cells)
+
+    @property
+    def frontmatter(self) -> Dict[str, Any]:
+        return self._frontmatter.copy() if self._frontmatter is not None else {}
 
     def hashes(self) -> List[Hash]:
         return list(self._cells)
@@ -98,7 +103,10 @@ class Document:
         log.info(f'{n_loaded} code cells loaded from output')
 
     def update_from_source(self, source: str) -> Tuple[List[BaseCell], List[BaseCell]]:
-        cells = OrderedDict((cell.hashid, cell) for cell in self._parser.parse(source))
+        frontmatter, cell_list = self._parser.parse(source)
+        if frontmatter is not None:
+            self._frontmatter = frontmatter
+        cells = OrderedDict((cell.hashid, cell) for cell in cell_list)
         new_cells = []
         cells_with_updated_flags: List[BaseCell] = []
         for hashid, cell in cells.items():
