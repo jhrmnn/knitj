@@ -7,8 +7,8 @@ name = "knitj"
 version = "0.3.0"
 description = "Alternative Jupyter front-end"
 readme = "README.md"
-authors = ["Jan Hermann <dev@janhermann.cz>"]
-repository = "https://github.com/azag0/knitj"
+authors = ["Jan Hermann <dev@jan.hermann.name>"]
+repository = "https://github.com/jhrmnn/knitj"
 license = "MPL-2.0"
 classifiers = [
     'Development Status :: 3 - Alpha',

@@ -2,9 +2,9 @@
 
 ![python](https://img.shields.io/pypi/pyversions/knitj.svg)
 [![pypi](https://img.shields.io/pypi/v/knitj.svg)](https://pypi.org/project/knitj/)
-[![commits since](https://img.shields.io/github/commits-since/azag0/knitj/latest.svg)](https://github.com/azag0/knitj/releases)
-[![last commit](https://img.shields.io/github/last-commit/azag0/knitj.svg)](https://github.com/azag0/knitj/commits/master)
-[![license](https://img.shields.io/github/license/azag0/knitj.svg)](https://github.com/azag0/knitj/blob/master/LICENSE)
+[![commits since](https://img.shields.io/github/commits-since/jhrmnn/knitj/latest.svg)](https://github.com/jhrmnn/knitj/releases)
+[![last commit](https://img.shields.io/github/last-commit/jhrmnn/knitj.svg)](https://github.com/jhrmnn/knitj/commits/master)
+[![license](https://img.shields.io/github/license/jhrmnn/knitj.svg)](https://github.com/jhrmnn/knitj/blob/master/LICENSE)
 [![code style](https://img.shields.io/badge/code%20style-black-202020.svg)](https://github.com/ambv/black)
 
 Knitj is an alternative front-end to Jupyter kernels. Inspired by [knitr](https://yihui.name/knitr/) and [R Markdown](http://rmarkdown.rstudio.com), Knitj renders a mix of markdown and source code into HTML by evaluating the code in a Jupyter kernel.
