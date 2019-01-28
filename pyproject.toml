@@ -45,3 +45,7 @@ flake8-comprehensions = "^1.4"
 flake8-quotes = "^1.0"
 black = "^18.3-alpha.0"
 ipykernel = "^5.1"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"
