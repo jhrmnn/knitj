@@ -33,13 +33,7 @@ def parse_cli() -> argparse.Namespace:
     arg('-f', '--format', help='input format')
     arg('-o', '--output', type=Path, metavar='FILE', help='output HTML file')
     arg('-k', '--kernel', help='Jupyter kernel to use')
-    arg(
-        '-b',
-        '--browser',
-        type=webbrowser.get,
-        default=webbrowser.get(),
-        help='browser to open',
-    )
+    arg('-b', '--browser', help='browser to open')
     arg(
         '-n',
         '--no-browser',
@@ -66,6 +60,10 @@ def main() -> None:
             fmt = 'markdown'
     if not fmt:
         raise RuntimeError('Cannot determine input format')
+    if args.browser is not False:
+        browser: Optional[webbrowser.BaseBrowser] = webbrowser.get(args.browser)
+    else:
+        browser = None
     loop = asyncio.get_event_loop()
     # hack to catch exceptions from kernel channels that run in threads
     executor = concurrent.futures.ThreadPoolExecutor()
@@ -76,7 +74,7 @@ def main() -> None:
             output = args.output
         else:
             output = args.source.with_suffix('.html')
-        app = KnitjServer(args.source, output, fmt, args.browser, args.kernel)
+        app = KnitjServer(args.source, output, fmt, browser, args.kernel)
         loop.run_until_complete(app.start())
         try:
             loop.run_forever()
